@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Paginated TXT Reader & Dictionary</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    /* Basic Reset & Body Setup */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: #f5f5f5;
+    }
+
+    header {
+      padding: 0.5rem 1rem;
+      background: #333;
+      color: #fff;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 0.5rem;
+    }
+
+    #topControls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    #textContainer {
+      flex: 1;
+      overflow-y: auto;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 1rem;
+      margin-bottom: 0.5rem;
+      line-height: 1.5;
+      font-size: 1rem;
+      white-space: pre-line; /* Preserve newlines */
+    }
+
+    /* word highlighting on hover */
+    .word:hover {
+      background-color: #fffa87;
+      cursor: pointer;
+    }
+
+    #definitionBox {
+      background: #fff;
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      min-height: 2rem;
+      margin-bottom: 0.5rem;
+      overflow-y: auto;
+      max-height: 10rem;
+    }
+
+    #paginationControls {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin: 0.5rem 0;
+    }
+
+    #searchContainer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    #searchResults {
+      margin-top: 0.5rem;
+      max-height: 4rem;
+      overflow-y: auto;
+    }
+    .searchHit {
+      display: inline-block;
+      background: #eee;
+      margin-right: 0.25rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .searchHit:hover {
+      background: #ddd;
+    }
+
+    /* Modal */
+    #settingsModal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    #settingsModalContent {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 6px;
+      width: 90%;
+      max-width: 400px;
+    }
+    #settingsModalContent label {
+      display: block;
+      margin-top: 0.5rem;
+    }
+    #settingsModalContent input {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.25rem;
+    }
+    #settingsModalContent button {
+      margin: 1rem 0 0;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+    }
+
+    /* Buttons */
+    button {
+      cursor: pointer;
+      padding: 0.5rem 0.75rem;
+      border: none;
+      border-radius: 4px;
+      background: #007bff;
+      color: #fff;
+      font-size: 0.9rem;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      #textContainer {
+        font-size: 0.9rem;
+      }
+      #searchContainer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+<header>
+  <div style="flex:1;">Paginated TXT Reader & Dictionary</div>
+  <button id="openSettingsBtn">Settings</button>
+</header>
+
+<main>
+  <div id="topControls">
+    <input type="file" id="fileInput" accept=".txt" />
+    <button id="prevPageBtn" disabled>&lt; Prev Page</button>
+    <button id="nextPageBtn" disabled>Next Page &gt;</button>
+    <span id="pageIndicator"></span>
+  </div>
+
+  <!-- Search controls -->
+  <div id="searchContainer">
+    <input type="text" id="searchInput" placeholder="Search phrase..." style="flex:1;" />
+    <button id="searchBtn">Search</button>
+  </div>
+  <div id="searchResults"></div>
+
+  <div id="textContainer"></div>
+  <div id="definitionBox"><em>Definition will appear here when a word is clicked.</em></div>
+</main>
+
+
+<!-- Modal for Settings -->
+<div id="settingsModal">
+  <div id="settingsModalContent">
+    <h2>Settings</h2>
+    <label for="apiKeyInput">OpenAI API Key:</label>
+    <input type="text" id="apiKeyInput" placeholder="Enter your OpenAI API key" />
+
+    <!-- Example of other settings:
+    <label for="modelInput">Model:</label>
+    <input type="text" id="modelInput" value="gpt-4o-mini" />
+    -->
+    
+    <div style="display:flex; justify-content:flex-end; gap:1rem;">
+      <button id="saveSettingsBtn">Save</button>
+      <button id="closeSettingsBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ------------- Constants ------------- //
+const PAGE_SIZE = 25; // number of lines per page
+const MAX_SENTENCE_LENGTH = 200; // max chars for "sentence" in definition prompt
+const DEFAULT_MODEL = 'gpt-4o-mini';
+
+// ------------- Elements ------------- //
+const fileInput       = document.getElementById('fileInput');
+const textContainer   = document.getElementById('textContainer');
+const definitionBox   = document.getElementById('definitionBox');
+const prevPageBtn     = document.getElementById('prevPageBtn');
+const nextPageBtn     = document.getElementById('nextPageBtn');
+const pageIndicator   = document.getElementById('pageIndicator');
+const searchInput     = document.getElementById('searchInput');
+const searchBtn       = document.getElementById('searchBtn');
+const searchResults   = document.getElementById('searchResults');
+
+// Modal elements
+const settingsModal        = document.getElementById('settingsModal');
+const settingsModalContent = document.getElementById('settingsModalContent');
+const openSettingsBtn      = document.getElementById('openSettingsBtn');
+const closeSettingsBtn     = document.getElementById('closeSettingsBtn');
+const saveSettingsBtn      = document.getElementById('saveSettingsBtn');
+const apiKeyInput          = document.getElementById('apiKeyInput');
+// const modelInput        = document.getElementById('modelInput'); // optionally support custom model
+
+// ------------- State ------------- //
+let apiKey = '';
+let currentFileName = null;
+let pages = [];        // array of pages, each page is an array of lines
+let currentPageIndex = 0;
+let totalPages = 0;
+
+// ------------- On Load ------------- //
+window.addEventListener('DOMContentLoaded', () => {
+  const storedApiKey = localStorage.getItem('openai_api_key');
+  if (storedApiKey) {
+    apiKey = storedApiKey;
+  }
+});
+
+// ------------- Modal Handling ------------- //
+openSettingsBtn.addEventListener('click', () => {
+  settingsModal.style.display = 'flex';
+  apiKeyInput.value = apiKey;
+});
+
+closeSettingsBtn.addEventListener('click', () => {
+  settingsModal.style.display = 'none';
+});
+
+saveSettingsBtn.addEventListener('click', () => {
+  apiKey = apiKeyInput.value.trim();
+  localStorage.setItem('openai_api_key', apiKey);
+  // localStorage.setItem('openai_model', modelInput.value.trim());
+
+  settingsModal.style.display = 'none';
+});
+
+// ------------- File Handling ------------- //
+fileInput.addEventListener('change', async (evt) => {
+  const file = evt.target.files[0];
+  if (!file) return;
+
+  definitionBox.innerHTML = '<em>Definition will appear here when a word is clicked.</em>';
+  textContainer.innerHTML = 'Loading file...';
+
+  currentFileName = file.name;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const rawText = e.target.result;
+    setupPagination(rawText);
+    loadSavedPage();
+    renderPage(currentPageIndex);
+  };
+  reader.readAsText(file);
+});
+
+// Split file content into pages, each page has PAGE_SIZE lines
+function setupPagination(rawText) {
+  // Split on newlines to preserve lines
+  const lines = rawText.split(/\r?\n/);
+  pages = [];
+  for (let i = 0; i < lines.length; i += PAGE_SIZE) {
+    const pageLines = lines.slice(i, i + PAGE_SIZE);
+    pages.push(pageLines);
+  }
+  totalPages = pages.length;
+  currentPageIndex = 0;
+
+  // Enable pagination buttons if there's more than one page
+  if (totalPages > 1) {
+    prevPageBtn.disabled = false;
+    nextPageBtn.disabled = false;
+  } else {
+    prevPageBtn.disabled = true;
+    nextPageBtn.disabled = true;
+  }
+}
+
+// Load saved page from localStorage for the current file
+function loadSavedPage() {
+  if (!currentFileName) return;
+  const key = `pageIndex_${currentFileName}`;
+  const storedIndex = localStorage.getItem(key);
+  if (storedIndex) {
+    const idx = parseInt(storedIndex, 10);
+    if (!isNaN(idx) && idx >= 0 && idx < totalPages) {
+      currentPageIndex = idx;
+    }
+  }
+}
+
+// Save current page index to localStorage
+function savePageIndex() {
+  if (!currentFileName) return;
+  const key = `pageIndex_${currentFileName}`;
+  localStorage.setItem(key, currentPageIndex);
+}
+
+// ------------- Pagination Controls ------------- //
+prevPageBtn.addEventListener('click', () => {
+  if (currentPageIndex > 0) {
+    currentPageIndex--;
+    renderPage(currentPageIndex);
+    savePageIndex();
+  }
+});
+
+nextPageBtn.addEventListener('click', () => {
+  if (currentPageIndex < totalPages - 1) {
+    currentPageIndex++;
+    renderPage(currentPageIndex);
+    savePageIndex();
+  }
+});
+
+// Render the current page into #textContainer, hooking up word click events
+function renderPage(pageIndex) {
+  if (pageIndex < 0 || pageIndex >= totalPages) {
+    textContainer.innerHTML = 'No content.';
+    pageIndicator.textContent = '';
+    return;
+  }
+
+  const lines = pages[pageIndex];
+  // Convert lines -> HTML, each line with <br> for newlines,
+  // and each non-whitespace token wrapped in <span> for click events.
+  const htmlLines = lines.map((line, lineIndex) => {
+    // We'll split the line into tokens, preserving punctuation (for multi-lingual).
+    // Approach: split on whitespace, then keep the whitespace as separate tokens if we want to preserve spacing.
+    const tokens = line.split(/(\s+)/);
+
+    // Then wrap non-whitespace tokens in span.word
+    const wrappedLine = tokens.map((token, tokenIndex) => {
+      if (token.trim() === '') {
+        // It's whitespace
+        return token; 
+      } else {
+        // It's a word or punctuation chunk
+        return `<span 
+                  class="word" 
+                  data-line-index="${lineIndex}" 
+                  data-token-index="${tokenIndex}"
+                >${escapeHtml(token)}</span>`;
+      }
+    }).join('');
+
+    return wrappedLine;
+  });
+
+  textContainer.innerHTML = htmlLines.join('\n');
+
+  // Update page indicator
+  pageIndicator.textContent = `Page ${pageIndex + 1} / ${totalPages}`;
+
+  // Attach word-click event listeners
+  const wordSpans = textContainer.querySelectorAll('.word');
+  wordSpans.forEach(span => {
+    span.addEventListener('click', onWordClick);
+  });
+}
+
+// For definition, we send both the "word" and a truncated "sentence" (the line the word is on).
+async function onWordClick(e) {
+  const clickedToken = e.target.textContent;
+  const lineIndex = parseInt(e.target.dataset.lineIndex, 10);
+
+  // Get the entire line
+  const line = pages[currentPageIndex][lineIndex] || '';
+
+  definitionBox.innerHTML = 'Fetching definition...';
+
+  try {
+    // Build the "sentence" (in this case, the line) truncated
+    const truncatedSentence = truncateSentence(line, clickedToken, MAX_SENTENCE_LENGTH);
+
+    const definition = await fetchDefinition(clickedToken, truncatedSentence);
+    definitionBox.innerHTML = `<strong>${clickedToken}:</strong> ${definition}`;
+  } catch (error) {
+    console.error(error);
+    definitionBox.innerHTML = 'Error fetching definition.';
+  }
+}
+
+// Return a truncated sentence around the word
+function truncateSentence(line, word, maxLen) {
+  // If the line is short enough, just return it
+  if (line.length <= maxLen) return line;
+
+  // Otherwise, we find the index of the word and try to keep some context
+  // This is a naive approach — you can refine for multi-lingual punctuation, etc.
+  const idx = line.indexOf(word);
+  if (idx === -1) {
+    // fallback
+    return line.substring(0, maxLen) + '...';
+  }
+
+  const half = Math.floor(maxLen / 2);
+  let start = Math.max(0, idx - half);
+  let end   = Math.min(line.length, idx + word.length + half);
+
+  // Possibly expand if too short
+  if (end - start < maxLen) {
+    end = Math.min(line.length, start + maxLen);
+  }
+  let snippet = line.substring(start, end);
+  if (start > 0) snippet = '...' + snippet;
+  if (end < line.length) snippet += '...';
+  return snippet;
+}
+
+// ------------- Definition Fetching ------------- //
+async function fetchDefinition(word, sentence) {
+  if (!apiKey) throw new Error('API Key not set. Please go to Settings.');
+
+  const url = 'https://api.openai.com/v1/chat/completions';
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiKey}`,
+  };
+
+  const messages = [
+    {
+      role: 'system',
+      content:`Give the translation to the word, given the context. Also give the dictionary form of the word, the most important forms, including accent marks and a translation of the whole sentence.
+
+      For example, for the French word 'pommes' in 'Il mange des pommes.' the output would be: 
+      apples [la pomme] (pomme, pommes)
+      He eats apples.
+
+      `
+    },
+    {
+      role: 'user',
+      content: `Word: ${word}\nSentence: ${sentence}`
+    }
+  ];
+
+  const body = {
+    model: DEFAULT_MODEL, // or from your stored setting
+    messages: messages,
+    temperature: 0,
+    max_tokens: 100,
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error from OpenAI: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (!data.choices || data.choices.length === 0) {
+    throw new Error('No response from OpenAI');
+  }
+  return data.choices[0].message.content.trim();
+}
+
+// ------------- Search Function ------------- //
+searchBtn.addEventListener('click', () => {
+  const phrase = searchInput.value.trim();
+  if (!phrase || !pages.length) return;
+
+  searchResults.innerHTML = 'Searching...';
+  const hits = [];
+
+  for (let p = 0; p < pages.length; p++) {
+    const pageText = pages[p].join('\n');
+    if (pageText.toLowerCase().includes(phrase.toLowerCase())) {
+      hits.push(p);
+    }
+  }
+
+  if (hits.length === 0) {
+    searchResults.innerHTML = '<em>No pages found.</em>';
+    return;
+  }
+
+  // Display results as clickable
+  const frag = document.createDocumentFragment();
+  hits.forEach(pageIndex => {
+    const div = document.createElement('div');
+    div.classList.add('searchHit');
+    div.textContent = `Page ${pageIndex + 1}`;
+    div.addEventListener('click', () => {
+      currentPageIndex = pageIndex;
+      renderPage(currentPageIndex);
+      savePageIndex();
+    });
+    frag.appendChild(div);
+  });
+  searchResults.innerHTML = '';
+  searchResults.appendChild(frag);
+});
+
+// ------------- Utility ------------- //
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
