@@ -503,8 +503,8 @@ async function fetchDefinition(word, sentence) {
       role: 'system',
       content: `Give the translation to the word, given the context. Also give the dictionary form of the word, the most important forms, including accent marks and a translation of the whole sentence.
 
-      For Russian, make sure to add stress marks to all russian words.
-      For Russian verbs, give the imperfective and perfective infinitive as the dictionary form.
+      For Russian words, make sure to add stress marks to all Russian words.
+      For Russian verbs, give the infinitive of the verb and also add the corresponding imperfective/perfect form to the dictionary form, e.g. (встрять, impf встрева́ть) or (встрева́ть, pf. встрять)
 
 For example, for the French word 'pommes' in 'Il mange des pommes.' the output would be: 
 apples [la pomme] (pomme, pommes)
