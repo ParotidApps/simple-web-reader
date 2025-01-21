@@ -4,172 +4,15 @@
   <meta charset="UTF-8">
   <title>Paginated TXT Reader & Dictionary</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <style>
-    /* Basic Reset & Body Setup */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      background: #f5f5f5;
-    }
-
-    header {
-      padding: 0.5rem 1rem;
-      background: #333;
-      color: #fff;
-    }
-
-    header {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      padding: 0.5rem;
-    }
-
-    #topControls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-
-    #textContainer {
-      flex: 1;
-      overflow-y: auto;
-      background: #fff;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      padding: 1rem;
-      margin-bottom: 0.5rem;
-      line-height: 1.5;
-      font-size: 1rem;
-      white-space: pre-line; /* Preserve newlines */
-    }
-
-    /* word highlighting on hover */
-    .word:hover {
-      background-color: #fffa87;
-      cursor: pointer;
-    }
-
-    #definitionBox {
-      background: #fff;
-      padding: 0.75rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      min-height: 2rem;
-      margin-bottom: 0.5rem;
-      overflow-y: auto;
-      max-height: 10rem;
-    }
-
-    #paginationControls {
-      display: flex;
-      gap: 0.5rem;
-      justify-content: center;
-      margin: 0.5rem 0;
-    }
-
-    #searchContainer {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-    #searchResults {
-      margin-top: 0.5rem;
-      max-height: 4rem;
-      overflow-y: auto;
-    }
-    .searchHit {
-      display: inline-block;
-      background: #eee;
-      margin-right: 0.25rem;
-      padding: 0.25rem 0.5rem;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .searchHit:hover {
-      background: #ddd;
-    }
-
-    /* Modal */
-    #settingsModal {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.4);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-    }
-    #settingsModalContent {
-      background: #fff;
-      padding: 1rem;
-      border-radius: 6px;
-      width: 90%;
-      max-width: 400px;
-    }
-    #settingsModalContent label {
-      display: block;
-      margin-top: 0.5rem;
-    }
-    #settingsModalContent input {
-      width: 100%;
-      padding: 0.5rem;
-      margin-top: 0.25rem;
-    }
-    #settingsModalContent button {
-      margin: 1rem 0 0;
-      padding: 0.5rem 1rem;
-      cursor: pointer;
-    }
-
-    /* Buttons */
-    button {
-      cursor: pointer;
-      padding: 0.5rem 0.75rem;
-      border: none;
-      border-radius: 4px;
-      background: #007bff;
-      color: #fff;
-      font-size: 0.9rem;
-    }
-    button:hover {
-      background: #0056b3;
-    }
-
-    /* Responsive */
-    @media (max-width: 600px) {
-      #textContainer {
-        font-size: 0.9rem;
-      }
-      #searchContainer {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-    }
-
-  </style>
+  <link href="main.css" rel="stylesheet" />
 </head>
 <body>
 
 <header>
   <div style="flex:1;">Paginated TXT Reader & Dictionary</div>
+  <button id="recentBtn">Recent</button> <!-- NEW -->
+  <button id="reviewWordsBtn">Review Words</button> <!-- NEW -->
+  <button id="toggleSearchBtn">Toggle Search</button> <!-- NEW -->
   <button id="openSettingsBtn">Settings</button>
 </header>
 
@@ -178,7 +21,7 @@
     <input type="file" id="fileInput" accept=".txt" />
     <button id="prevPageBtn" disabled>&lt; Prev Page</button>
     <button id="nextPageBtn" disabled>Next Page &gt;</button>
-    <span id="pageIndicator"></span>
+    <span id="pageIndicator" title="Click to go to page"></span> <!-- UPDATED: clickable -->
   </div>
 
   <!-- Search controls -->
@@ -200,14 +43,82 @@
     <label for="apiKeyInput">OpenAI API Key:</label>
     <input type="text" id="apiKeyInput" placeholder="Enter your OpenAI API key" />
 
-    <!-- Example of other settings:
-    <label for="modelInput">Model:</label>
-    <input type="text" id="modelInput" value="gpt-4o-mini" />
-    -->
-    
     <div style="display:flex; justify-content:flex-end; gap:1rem;">
       <button id="saveSettingsBtn">Save</button>
       <button id="closeSettingsBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Recent Books --> <!-- NEW -->
+<div id="recentModal">
+  <div id="recentModalContent">
+    <h2>Recently Opened Books</h2>
+    <div id="recentBooksList"></div>
+    <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:1rem;">
+      <button id="closeRecentBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Review Words --> <!-- NEW -->
+<div id="reviewModal">
+  <div id="reviewModalContent">
+    <h2>Review Words</h2>
+    <div id="reviewControls">
+      <label for="reviewFilter">Filter by box:</label>
+      <select id="reviewFilter">
+        <option value="all">All Boxes</option>
+        <option value="1">Box 1</option>
+        <option value="2">Box 2</option>
+        <option value="3">Box 3</option>
+        <option value="4">Box 4</option>
+        <option value="5">Box 5</option>
+      </select>
+      <button id="exportTSVBtn">Export TSV</button>
+    </div>
+    <div id="wordList"></div>
+    <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:1rem;">
+      <button id="openQuizBtn">Start Quiz</button>
+      <button id="closeReviewBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Quiz --> <!-- NEW -->
+<div id="quizModal">
+  <div id="quizModalContent">
+    <h2>Quiz</h2>
+    <div style="margin-bottom:1rem;">
+      <label>Quiz mode:</label>
+      <select id="quizModeSelect">
+        <option value="1">Mode 1: Missing Word</option>
+        <option value="2">Mode 2: Show Word -> Then Translation</option>
+      </select>
+      <label>Boxes:</label>
+      <select id="quizBoxesSelect">
+        <option value="all">All Boxes</option>
+        <option value="1">Box 1 Only</option>
+        <option value="2">Box 2 Only</option>
+        <option value="3">Box 3 Only</option>
+        <option value="4">Box 4 Only</option>
+        <option value="5">Box 5 Only</option>
+      </select>
+      <button id="startQuizBtn">Begin</button>
+    </div>
+    <div id="quizCard" style="display:none;">
+      <div id="quizCardContent"></div>
+      <button id="revealBtn" style="margin-top:1rem;">Reveal</button>
+      <div id="quizRevealSection" style="display:none; margin-top:1rem;">
+        <div id="quizRevealContent"></div>
+        <div style="margin-top:0.5rem;">
+          <button id="passBtn">Pass</button>
+          <button id="failBtn">Fail</button>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:1rem; display:flex; justify-content:flex-end; gap:1rem;">
+      <button id="closeQuizBtn">Close</button>
     </div>
   </div>
 </div>
@@ -217,6 +128,8 @@
 const PAGE_SIZE = 25; // number of lines per page
 const MAX_SENTENCE_LENGTH = 200; // max chars for "sentence" in definition prompt
 const DEFAULT_MODEL = 'gpt-4o-mini';
+const MAX_STORAGE_SIZE = 1000000; // ~1MB limit for storing file text
+const MAX_LEITNER_BOX = 5; // 5 boxes for leitner system
 
 // ------------- Elements ------------- //
 const fileInput       = document.getElementById('fileInput');
@@ -228,15 +141,44 @@ const pageIndicator   = document.getElementById('pageIndicator');
 const searchInput     = document.getElementById('searchInput');
 const searchBtn       = document.getElementById('searchBtn');
 const searchResults   = document.getElementById('searchResults');
+const toggleSearchBtn = document.getElementById('toggleSearchBtn'); // NEW
 
 // Modal elements
-const settingsModal        = document.getElementById('settingsModal');
-const settingsModalContent = document.getElementById('settingsModalContent');
-const openSettingsBtn      = document.getElementById('openSettingsBtn');
-const closeSettingsBtn     = document.getElementById('closeSettingsBtn');
-const saveSettingsBtn      = document.getElementById('saveSettingsBtn');
-const apiKeyInput          = document.getElementById('apiKeyInput');
-// const modelInput        = document.getElementById('modelInput'); // optionally support custom model
+const settingsModal         = document.getElementById('settingsModal');
+const settingsModalContent  = document.getElementById('settingsModalContent');
+const openSettingsBtn       = document.getElementById('openSettingsBtn');
+const closeSettingsBtn      = document.getElementById('closeSettingsBtn');
+const saveSettingsBtn       = document.getElementById('saveSettingsBtn');
+const apiKeyInput           = document.getElementById('apiKeyInput');
+
+// Recent Modal
+const recentBtn         = document.getElementById('recentBtn');
+const recentModal       = document.getElementById('recentModal');
+const closeRecentBtn    = document.getElementById('closeRecentBtn');
+const recentBooksList   = document.getElementById('recentBooksList');
+
+// Review Modal
+const reviewWordsBtn    = document.getElementById('reviewWordsBtn');
+const reviewModal       = document.getElementById('reviewModal');
+const closeReviewBtn    = document.getElementById('closeReviewBtn');
+const exportTSVBtn      = document.getElementById('exportTSVBtn');
+const wordList          = document.getElementById('wordList');
+const reviewFilter      = document.getElementById('reviewFilter');
+const openQuizBtn       = document.getElementById('openQuizBtn');
+
+// Quiz Modal
+const quizModal         = document.getElementById('quizModal');
+const closeQuizBtn      = document.getElementById('closeQuizBtn');
+const quizModeSelect    = document.getElementById('quizModeSelect');
+const quizBoxesSelect   = document.getElementById('quizBoxesSelect');
+const startQuizBtn      = document.getElementById('startQuizBtn');
+const quizCard          = document.getElementById('quizCard');
+const quizCardContent   = document.getElementById('quizCardContent');
+const revealBtn         = document.getElementById('revealBtn');
+const quizRevealSection = document.getElementById('quizRevealSection');
+const quizRevealContent = document.getElementById('quizRevealContent');
+const passBtn           = document.getElementById('passBtn');
+const failBtn           = document.getElementById('failBtn');
 
 // ------------- State ------------- //
 let apiKey = '';
@@ -244,31 +186,90 @@ let currentFileName = null;
 let pages = [];        // array of pages, each page is an array of lines
 let currentPageIndex = 0;
 let totalPages = 0;
+let wordsData = [];    // {word, sentence, translation, box} -- leitner data
+let quizQueue = [];    // For quiz usage
+let quizCurrentIndex = 0;
 
 // ------------- On Load ------------- //
 window.addEventListener('DOMContentLoaded', () => {
+  // Load stored API key
   const storedApiKey = localStorage.getItem('openai_api_key');
   if (storedApiKey) {
     apiKey = storedApiKey;
   }
+
+  // Load stored words data
+  const storedWords = localStorage.getItem('words_data');
+  if (storedWords) {
+    try {
+      wordsData = JSON.parse(storedWords);
+    } catch(e) {
+      wordsData = [];
+    }
+  }
+
+  // Attempt to load last opened book automatically
+  const lastBook = localStorage.getItem('lastBook');
+  if (lastBook) {
+    const { fileName, storedTextKey } = JSON.parse(lastBook);
+    if (fileName && storedTextKey) {
+      loadBookFromLocalStorage(fileName, storedTextKey);
+    }
+  }
 });
 
 // ------------- Modal Handling ------------- //
+// Settings
 openSettingsBtn.addEventListener('click', () => {
   settingsModal.style.display = 'flex';
   apiKeyInput.value = apiKey;
 });
-
 closeSettingsBtn.addEventListener('click', () => {
   settingsModal.style.display = 'none';
 });
-
 saveSettingsBtn.addEventListener('click', () => {
   apiKey = apiKeyInput.value.trim();
   localStorage.setItem('openai_api_key', apiKey);
-  // localStorage.setItem('openai_model', modelInput.value.trim());
-
   settingsModal.style.display = 'none';
+});
+
+// Recent
+recentBtn.addEventListener('click', () => {
+  recentModal.style.display = 'flex';
+  renderRecentBooks();
+});
+closeRecentBtn.addEventListener('click', () => {
+  recentModal.style.display = 'none';
+});
+
+// Review Words
+reviewWordsBtn.addEventListener('click', () => {
+  reviewModal.style.display = 'flex';
+  renderWordList();
+});
+closeReviewBtn.addEventListener('click', () => {
+  reviewModal.style.display = 'none';
+});
+
+// Quiz
+closeQuizBtn.addEventListener('click', () => {
+  quizModal.style.display = 'none';
+});
+openQuizBtn.addEventListener('click', () => {
+  quizModal.style.display = 'flex';
+});
+
+// ------------- Toggling Search ------------- //
+toggleSearchBtn.addEventListener('click', () => {
+  const searchContainer = document.getElementById('searchContainer');
+  const searchResultsDiv = document.getElementById('searchResults');
+  if (searchContainer.style.display === 'none') {
+    searchContainer.style.display = '';
+    searchResultsDiv.style.display = '';
+  } else {
+    searchContainer.style.display = 'none';
+    searchResultsDiv.style.display = 'none';
+  }
 });
 
 // ------------- File Handling ------------- //
@@ -278,11 +279,29 @@ fileInput.addEventListener('change', async (evt) => {
 
   definitionBox.innerHTML = '<em>Definition will appear here when a word is clicked.</em>';
   textContainer.innerHTML = 'Loading file...';
-
   currentFileName = file.name;
+
   const reader = new FileReader();
   reader.onload = (e) => {
     const rawText = e.target.result;
+    // Try to store it in localStorage if not too big
+    if (rawText.length <= MAX_STORAGE_SIZE) {
+      const storageKey = 'fileContent_' + currentFileName;
+      try {
+        localStorage.setItem(storageKey, rawText);
+        // Save as lastBook
+        localStorage.setItem('lastBook', JSON.stringify({ fileName: currentFileName, storedTextKey: storageKey }));
+        // Also add to recent
+        addToRecentBooks(currentFileName);
+      } catch(err) {
+        console.warn("Could not store file in localStorage. Possibly full or restricted.");
+      }
+    } else {
+      // If too big, we won't store it, but we still put a "lastBook" reference with no textKey
+      localStorage.setItem('lastBook', JSON.stringify({ fileName: currentFileName, storedTextKey: null }));
+      addToRecentBooks(currentFileName);
+    }
+
     setupPagination(rawText);
     loadSavedPage();
     renderPage(currentPageIndex);
@@ -290,9 +309,24 @@ fileInput.addEventListener('change', async (evt) => {
   reader.readAsText(file);
 });
 
-// Split file content into pages, each page has PAGE_SIZE lines
+// Attempt to load a book from localStorage given the fileName and the storedTextKey
+function loadBookFromLocalStorage(fileName, storedTextKey) {
+  if (!storedTextKey) {
+    // No text stored, so we can't auto-load
+    return;
+  }
+  const rawText = localStorage.getItem(storedTextKey);
+  if (!rawText) {
+    return;
+  }
+  currentFileName = fileName;
+  setupPagination(rawText);
+  loadSavedPage();
+  renderPage(currentPageIndex);
+}
+
+// ------------- Pagination Setup ------------- //
 function setupPagination(rawText) {
-  // Split on newlines to preserve lines
   const lines = rawText.split(/\r?\n/);
   pages = [];
   for (let i = 0; i < lines.length; i += PAGE_SIZE) {
@@ -302,7 +336,6 @@ function setupPagination(rawText) {
   totalPages = pages.length;
   currentPageIndex = 0;
 
-  // Enable pagination buttons if there's more than one page
   if (totalPages > 1) {
     prevPageBtn.disabled = false;
     nextPageBtn.disabled = false;
@@ -333,23 +366,39 @@ function savePageIndex() {
 }
 
 // ------------- Pagination Controls ------------- //
-prevPageBtn.addEventListener('click', () => {
+prevPageBtn.addEventListener('click', goPrevPage);
+nextPageBtn.addEventListener('click', goNextPage);
+
+function goPrevPage() {
   if (currentPageIndex > 0) {
     currentPageIndex--;
     renderPage(currentPageIndex);
     savePageIndex();
   }
-});
+}
 
-nextPageBtn.addEventListener('click', () => {
+function goNextPage() {
   if (currentPageIndex < totalPages - 1) {
     currentPageIndex++;
     renderPage(currentPageIndex);
     savePageIndex();
   }
+}
+
+// Jump to page number after user input
+pageIndicator.addEventListener('click', () => {
+  if (!pages.length) return;
+  const userInput = prompt(`Enter a page number (1 - ${totalPages})`);
+  if (!userInput) return;
+  const pageNum = parseInt(userInput, 10);
+  if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+    currentPageIndex = pageNum - 1;
+    renderPage(currentPageIndex);
+    savePageIndex();
+  }
 });
 
-// Render the current page into #textContainer, hooking up word click events
+// ------------- Render Page ------------- //
 function renderPage(pageIndex) {
   if (pageIndex < 0 || pageIndex >= totalPages) {
     textContainer.innerHTML = 'No content.';
@@ -358,20 +407,12 @@ function renderPage(pageIndex) {
   }
 
   const lines = pages[pageIndex];
-  // Convert lines -> HTML, each line with <br> for newlines,
-  // and each non-whitespace token wrapped in <span> for click events.
   const htmlLines = lines.map((line, lineIndex) => {
-    // We'll split the line into tokens, preserving punctuation (for multi-lingual).
-    // Approach: split on whitespace, then keep the whitespace as separate tokens if we want to preserve spacing.
     const tokens = line.split(/(\s+)/);
-
-    // Then wrap non-whitespace tokens in span.word
     const wrappedLine = tokens.map((token, tokenIndex) => {
       if (token.trim() === '') {
-        // It's whitespace
-        return token; 
+        return token; // whitespace
       } else {
-        // It's a word or punctuation chunk
         return `<span 
                   class="word" 
                   data-line-index="${lineIndex}" 
@@ -379,62 +420,65 @@ function renderPage(pageIndex) {
                 >${escapeHtml(token)}</span>`;
       }
     }).join('');
-
     return wrappedLine;
   });
 
   textContainer.innerHTML = htmlLines.join('\n');
+  // Jump to top
+  textContainer.scrollTop = 0; // NEW: jump to top
 
-  // Update page indicator
   pageIndicator.textContent = `Page ${pageIndex + 1} / ${totalPages}`;
-
-  // Attach word-click event listeners
   const wordSpans = textContainer.querySelectorAll('.word');
   wordSpans.forEach(span => {
     span.addEventListener('click', onWordClick);
   });
 }
 
-// For definition, we send both the "word" and a truncated "sentence" (the line the word is on).
+// ------------- Word Click / Definition ------------- //
 async function onWordClick(e) {
   const clickedToken = e.target.textContent;
   const lineIndex = parseInt(e.target.dataset.lineIndex, 10);
-
-  // Get the entire line
   const line = pages[currentPageIndex][lineIndex] || '';
 
   definitionBox.innerHTML = 'Fetching definition...';
 
   try {
-    // Build the "sentence" (in this case, the line) truncated
     const truncatedSentence = truncateSentence(line, clickedToken, MAX_SENTENCE_LENGTH);
-
     const definition = await fetchDefinition(clickedToken, truncatedSentence);
     definitionBox.innerHTML = `<strong>${clickedToken}:</strong> ${definition}`;
+
+    // Store the word data in localStorage for review (Leitner)
+    storeWordData(clickedToken, truncatedSentence, definition);
+
   } catch (error) {
     console.error(error);
     definitionBox.innerHTML = 'Error fetching definition.';
   }
 }
 
-// Return a truncated sentence around the word
-function truncateSentence(line, word, maxLen) {
-  // If the line is short enough, just return it
-  if (line.length <= maxLen) return line;
+// ------------- Utility: store word data ------------- //
+function storeWordData(word, sentence, translation) {
+  // check if we already have this exact word+sentence
+  const existing = wordsData.find(w => w.word === word && w.sentence === sentence);
+  if (existing) {
+    // Optionally update translation if you want to refresh it:
+    existing.translation = translation;
+  } else {
+    wordsData.push({ word, sentence, translation, box: 1 });
+  }
+  localStorage.setItem('words_data', JSON.stringify(wordsData));
+}
 
-  // Otherwise, we find the index of the word and try to keep some context
-  // This is a naive approach — you can refine for multi-lingual punctuation, etc.
+// ------------- Return a truncated sentence around the word ------------- //
+function truncateSentence(line, word, maxLen) {
+  if (line.length <= maxLen) return line;
   const idx = line.indexOf(word);
   if (idx === -1) {
-    // fallback
     return line.substring(0, maxLen) + '...';
   }
-
   const half = Math.floor(maxLen / 2);
   let start = Math.max(0, idx - half);
   let end   = Math.min(line.length, idx + word.length + half);
-
-  // Possibly expand if too short
   if (end - start < maxLen) {
     end = Math.min(line.length, start + maxLen);
   }
@@ -457,12 +501,11 @@ async function fetchDefinition(word, sentence) {
   const messages = [
     {
       role: 'system',
-      content:`Give the translation to the word, given the context. Also give the dictionary form of the word, the most important forms, including accent marks and a translation of the whole sentence.
+      content: `Give the translation to the word, given the context. Also give the dictionary form of the word, the most important forms, including accent marks and a translation of the whole sentence.
 
-      For example, for the French word 'pommes' in 'Il mange des pommes.' the output would be: 
-      apples [la pomme] (pomme, pommes)
-      He eats apples.
-
+For example, for the French word 'pommes' in 'Il mange des pommes.' the output would be: 
+apples [la pomme] (pomme, pommes)
+He eats apples.
       `
     },
     {
@@ -472,18 +515,17 @@ async function fetchDefinition(word, sentence) {
   ];
 
   const body = {
-    model: DEFAULT_MODEL, // or from your stored setting
-    messages: messages,
+    model: DEFAULT_MODEL,
+    messages,
     temperature: 0,
     max_tokens: 100,
   };
 
   const response = await fetch(url, {
     method: 'POST',
-    headers: headers,
+    headers,
     body: JSON.stringify(body),
   });
-
   if (!response.ok) {
     throw new Error(`Error from OpenAI: ${response.statusText}`);
   }
@@ -515,7 +557,6 @@ searchBtn.addEventListener('click', () => {
     return;
   }
 
-  // Display results as clickable
   const frag = document.createDocumentFragment();
   hits.forEach(pageIndex => {
     const div = document.createElement('div');
@@ -530,6 +571,247 @@ searchBtn.addEventListener('click', () => {
   });
   searchResults.innerHTML = '';
   searchResults.appendChild(frag);
+});
+
+// ------------- Recent Books ------------- //
+function addToRecentBooks(fileName) {
+  const key = 'recentBooks';
+  let arr = [];
+  const stored = localStorage.getItem(key);
+  if (stored) {
+    try {
+      arr = JSON.parse(stored);
+    } catch(e){}
+  }
+  // remove any existing entry for this file
+  arr = arr.filter(item => item.fileName !== fileName);
+  // push new entry
+  arr.unshift({fileName, date: new Date().toISOString()});
+  // limit to 10
+  arr = arr.slice(0, 10);
+  localStorage.setItem(key, JSON.stringify(arr));
+}
+
+function renderRecentBooks() {
+  recentBooksList.innerHTML = '';
+  const stored = localStorage.getItem('recentBooks');
+  if (!stored) {
+    recentBooksList.innerHTML = '<em>No recent books.</em>';
+    return;
+  }
+  let arr = [];
+  try {
+    arr = JSON.parse(stored);
+  } catch(e) {
+    recentBooksList.innerHTML = '<em>No recent books.</em>';
+    return;
+  }
+  if (!arr.length) {
+    recentBooksList.innerHTML = '<em>No recent books.</em>';
+    return;
+  }
+  arr.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'recentBookItem';
+    div.textContent = item.fileName;
+    div.addEventListener('click', () => {
+      // Attempt to load from localStorage
+      const storageKey = 'fileContent_' + item.fileName;
+      loadBookFromLocalStorage(item.fileName, storageKey);
+      recentModal.style.display = 'none';
+    });
+    recentBooksList.appendChild(div);
+  });
+}
+
+// ------------- Review Words ------------- //
+function renderWordList() {
+  // Filter by box if not "all"
+  const boxFilter = reviewFilter.value;
+  let filtered = [...wordsData];
+  if (boxFilter !== 'all') {
+    const bf = parseInt(boxFilter, 10);
+    filtered = filtered.filter(w => w.box === bf);
+  }
+
+  if (!filtered.length) {
+    wordList.innerHTML = '<em>No words found in this box.</em>';
+    return;
+  }
+
+  const container = document.createElement('div');
+  filtered.forEach((w, idx) => {
+    const row = document.createElement('div');
+    row.classList.add('reviewWordRow');
+    row.innerHTML = `
+      <strong>${w.word}</strong> - Box ${w.box}
+      <br><em>${w.sentence}</em>
+      <br>${w.translation}
+      <button class="deleteWordBtn" data-idx="${idx}">Delete</button>
+    `;
+    container.appendChild(row);
+  });
+
+  wordList.innerHTML = '';
+  wordList.appendChild(container);
+
+  // attach delete event
+  const deleteBtns = wordList.querySelectorAll('.deleteWordBtn');
+  deleteBtns.forEach(btn => {
+    btn.addEventListener('click', (evt) => {
+      // We need the original index in *filtered*, must carefully remove from wordsData
+      const localIdx = parseInt(evt.target.dataset.idx, 10);
+      // localIdx is the index in the filtered array
+      const toDelete = filtered[localIdx];
+      // remove from wordsData
+      wordsData = wordsData.filter(w => !(w.word === toDelete.word && w.sentence === toDelete.sentence));
+      localStorage.setItem('words_data', JSON.stringify(wordsData));
+      renderWordList();
+    });
+  });
+}
+
+// On filter change, re-render the list
+reviewFilter.addEventListener('change', renderWordList);
+
+// Export TSV
+exportTSVBtn.addEventListener('click', () => {
+  if (!wordsData.length) return;
+  let tsv = 'Word\tSentence\tTranslation\tBox\n';
+  wordsData.forEach(w => {
+    tsv += `${w.word}\t${w.sentence}\t${w.translation}\t${w.box}\n`;
+  });
+
+  // Download
+  const blob = new Blob([tsv], { type: 'text/tab-separated-values' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'words_data.tsv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+});
+
+// ------------- Quiz Logic ------------- //
+startQuizBtn.addEventListener('click', startQuiz);
+revealBtn.addEventListener('click', revealQuizCard);
+passBtn.addEventListener('click', () => gradeCard(true));
+failBtn.addEventListener('click', () => gradeCard(false));
+
+function startQuiz() {
+  // gather words based on boxes selection
+  const boxSelection = quizBoxesSelect.value;
+  let filtered = [...wordsData];
+  if (boxSelection !== 'all') {
+    const boxNum = parseInt(boxSelection, 10);
+    filtered = filtered.filter(w => w.box === boxNum);
+  }
+  if (!filtered.length) {
+    alert('No words in selected box(es).');
+    return;
+  }
+
+  quizQueue = shuffleArray(filtered);
+  quizCurrentIndex = 0;
+
+  quizCardContent.innerHTML = '';
+  quizRevealContent.innerHTML = '';
+  quizRevealSection.style.display = 'none';
+  quizCard.style.display = 'block';
+
+  renderQuizCard();
+}
+
+function renderQuizCard() {
+  if (quizCurrentIndex >= quizQueue.length) {
+    quizCardContent.innerHTML = 'Quiz finished!';
+    quizRevealSection.style.display = 'none';
+    return;
+  }
+  const mode = quizModeSelect.value;
+  const data = quizQueue[quizCurrentIndex];
+
+  // Clear reveal section
+  quizRevealSection.style.display = 'none';
+  quizRevealContent.innerHTML = '';
+
+  if (mode === '1') {
+    // Mode 1: show original sentence with the word blanked out
+    const blankedSentence = data.sentence.replace(data.word, '____');
+    quizCardContent.innerHTML = `<strong>Sentence:</strong> ${blankedSentence}
+                                 <br>Translation:</strong> ${data.translation}
+    <br><em>What is the missing word?</em>`;
+  } else {
+    // Mode 2: show the word, highlight it in sentence, but not the translation yet
+    const highlightSentence = data.sentence.replace(data.word, `<mark>${data.word}</mark>`);
+    quizCardContent.innerHTML = `<strong>Sentence:</strong> ${highlightSentence}
+                                 <br><em>What does the highlighted word mean?</em>`;
+  }
+}
+
+function revealQuizCard() {
+  if (quizCurrentIndex >= quizQueue.length) return;
+  const data = quizQueue[quizCurrentIndex];
+  const mode = quizModeSelect.value;
+
+  quizRevealSection.style.display = 'block';
+
+  if (mode === '1') {
+    // fill in the missing word + show the translation response
+    quizRevealContent.innerHTML = `<strong>Word:</strong> ${data.word}<br><strong>`;
+  } else {
+    // Mode 2: show translation of the word
+    quizRevealContent.innerHTML = `<strong>Translation:</strong> ${data.translation}`;
+  }
+}
+
+function gradeCard(passed) {
+  if (quizCurrentIndex >= quizQueue.length) return;
+  const data = quizQueue[quizCurrentIndex];
+
+  // adjust leitner box
+  if (passed) {
+    // move to next box, max is 5
+    if (data.box < MAX_LEITNER_BOX) {
+      data.box++;
+    }
+  } else {
+    // move back to box 1
+    data.box = 1;
+  }
+
+  // update the wordsData for that item
+  const idx = wordsData.findIndex(w => w.word === data.word && w.sentence === data.sentence);
+  if (idx !== -1) {
+    wordsData[idx].box = data.box;
+  }
+  localStorage.setItem('words_data', JSON.stringify(wordsData));
+
+  quizCurrentIndex++;
+  renderQuizCard();
+}
+
+// Simple shuffle
+function shuffleArray(arr) {
+  let array = [...arr];
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// ------------- Keyboard Navigation (left/right arrows) ------------- //
+document.addEventListener('keydown', (e) => {
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+    return; // don't interfere with text inputs
+  }
+  if (e.key === 'ArrowLeft') {
+    goPrevPage();
+  } else if (e.key === 'ArrowRight') {
+    goNextPage();
+  }
 });
 
 // ------------- Utility ------------- //

@@ -1,0 +1,209 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f5f5f5;
+}
+
+header {
+  padding: 0.5rem 1rem;
+  background: #333;
+  color: #fff;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0.5rem;
+}
+
+#topControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+#textContainer {
+  flex: 1;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+  font-size: 1rem;
+  white-space: pre-line; /* Preserve newlines */
+}
+
+/* word highlighting on hover */
+.word:hover {
+  background-color: #fffa87;
+  cursor: pointer;
+}
+
+#definitionBox {
+  background: #fff;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  min-height: 2rem;
+  margin-bottom: 0.5rem;
+  overflow-y: auto;
+  max-height: 10rem;
+}
+
+#searchContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+#searchResults {
+  margin-top: 0.5rem;
+  max-height: 4rem;
+  overflow-y: auto;
+}
+.searchHit {
+  display: inline-block;
+  background: #eee;
+  margin-right: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.searchHit:hover {
+  background: #ddd;
+}
+
+/* Modal Common */
+#settingsModal,
+#recentModal,
+#reviewModal,
+#quizModal {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.4);
+  display: none; /* hidden by default */
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+#settingsModalContent,
+#recentModalContent,
+#reviewModalContent,
+#quizModalContent {
+  background: #fff;
+  padding: 1rem;
+  border-radius: 6px;
+  width: 90%;
+  max-width: 500px;
+}
+
+/* Settings Modal */
+#settingsModalContent label {
+  display: block;
+  margin-top: 0.5rem;
+}
+#settingsModalContent input {
+  width: 100%;
+  padding: 0.5rem;
+  margin-top: 0.25rem;
+}
+#settingsModalContent button {
+  margin: 1rem 0 0;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+/* Recent Modal */
+#recentModalContent {
+  display: flex;
+  flex-direction: column;
+}
+.recentBookItem {
+  padding: 0.5rem;
+  border-bottom: 1px solid #ccc;
+  cursor: pointer;
+}
+.recentBookItem:hover {
+  background: #eee;
+}
+
+/* Review Modal */
+#reviewModalContent {
+  max-height: 80vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+#reviewControls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+#wordList {
+  border-top: 1px solid #ccc;
+  padding-top: 0.5rem;
+}
+.reviewWordRow {
+  margin-bottom: 1rem;
+  border-bottom: 1px dashed #ccc;
+  padding-bottom: 0.5rem;
+}
+.reviewWordRow button {
+  margin-top: 0.5rem;
+}
+
+/* Quiz Modal */
+#quizModalContent {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+#quizCard {
+  border: 1px solid #ccc;
+  padding: 1rem;
+  margin-top: 1rem;
+  background: #fafafa;
+  border-radius: 4px;
+}
+
+/* Buttons */
+button {
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 4px;
+  background: #007bff;
+  color: #fff;
+  font-size: 0.9rem;
+}
+button:hover {
+  background: #0056b3;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  #textContainer {
+    font-size: 0.9rem;
+  }
+  #searchContainer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
