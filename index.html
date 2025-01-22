@@ -10,10 +10,12 @@
 
 <header>
   <div style="flex:1;">Paginated TXT Reader & Dictionary</div>
-  <button id="recentBtn">Recent</button> <!-- NEW -->
-  <button id="reviewWordsBtn">Review Words</button> <!-- NEW -->
-  <button id="toggleSearchBtn">Toggle Search</button> <!-- NEW -->
+  <button id="recentBtn">Recent</button>
+  <button id="reviewWordsBtn">Review Words</button>
+  <button id="toggleSearchBtn">Toggle Search</button>
   <button id="openSettingsBtn">Settings</button>
+  <!-- This "Return to page" button is hidden by default -->
+  <button id="returnToPageBtn" style="display:none;">Return</button>
 </header>
 
 <main>
@@ -21,7 +23,9 @@
     <input type="file" id="fileInput" accept=".txt" />
     <button id="prevPageBtn" disabled>&lt; Prev Page</button>
     <button id="nextPageBtn" disabled>Next Page &gt;</button>
-    <span id="pageIndicator" title="Click to go to page"></span> <!-- UPDATED: clickable -->
+    <span id="pageIndicator" title="Click to go to page"></span>
+    <!-- NEW Translate Page Button -->
+    <button id="translatePageBtn" disabled>Translate Page</button>
   </div>
 
   <!-- Search controls -->
@@ -43,14 +47,21 @@
     <label for="apiKeyInput">OpenAI API Key:</label>
     <input type="text" id="apiKeyInput" placeholder="Enter your OpenAI API key" />
 
-    <div style="display:flex; justify-content:flex-end; gap:1rem;">
+    <!-- NEW: Model picker -->
+    <label for="modelSelect" style="margin-top:1rem;">Model:</label>
+    <select id="modelSelect">
+      <option value="gpt-4o">gpt-4o</option>
+      <option value="gpt-4o-mini" selected>gpt-4o-mini (default)</option>
+    </select>
+
+    <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:1rem;">
       <button id="saveSettingsBtn">Save</button>
       <button id="closeSettingsBtn">Close</button>
     </div>
   </div>
 </div>
 
-<!-- Modal for Recent Books --> <!-- NEW -->
+<!-- Modal for Recent Books -->
 <div id="recentModal">
   <div id="recentModalContent">
     <h2>Recently Opened Books</h2>
@@ -61,7 +72,7 @@
   </div>
 </div>
 
-<!-- Modal for Review Words --> <!-- NEW -->
+<!-- Modal for Review Words -->
 <div id="reviewModal">
   <div id="reviewModalContent">
     <h2>Review Words</h2>
@@ -85,7 +96,7 @@
   </div>
 </div>
 
-<!-- Modal for Quiz --> <!-- NEW -->
+<!-- Modal for Quiz -->
 <div id="quizModal">
   <div id="quizModalContent">
     <h2>Quiz</h2>
@@ -127,21 +138,23 @@
 // ------------- Constants ------------- //
 const PAGE_SIZE = 25; // number of lines per page
 const MAX_SENTENCE_LENGTH = 200; // max chars for "sentence" in definition prompt
-const DEFAULT_MODEL = 'gpt-4o-mini';
 const MAX_STORAGE_SIZE = 1000000; // ~1MB limit for storing file text
 const MAX_LEITNER_BOX = 5; // 5 boxes for leitner system
 
 // ------------- Elements ------------- //
-const fileInput       = document.getElementById('fileInput');
-const textContainer   = document.getElementById('textContainer');
-const definitionBox   = document.getElementById('definitionBox');
-const prevPageBtn     = document.getElementById('prevPageBtn');
-const nextPageBtn     = document.getElementById('nextPageBtn');
-const pageIndicator   = document.getElementById('pageIndicator');
-const searchInput     = document.getElementById('searchInput');
-const searchBtn       = document.getElementById('searchBtn');
-const searchResults   = document.getElementById('searchResults');
-const toggleSearchBtn = document.getElementById('toggleSearchBtn'); // NEW
+const fileInput         = document.getElementById('fileInput');
+const textContainer     = document.getElementById('textContainer');
+const definitionBox     = document.getElementById('definitionBox');
+const prevPageBtn       = document.getElementById('prevPageBtn');
+const nextPageBtn       = document.getElementById('nextPageBtn');
+const pageIndicator     = document.getElementById('pageIndicator');
+const translatePageBtn  = document.getElementById('translatePageBtn'); // NEW
+const searchInput       = document.getElementById('searchInput');
+const searchBtn         = document.getElementById('searchBtn');
+const searchResults     = document.getElementById('searchResults');
+const toggleSearchBtn   = document.getElementById('toggleSearchBtn');
+
+const returnToPageBtn   = document.getElementById('returnToPageBtn'); // NEW "Return" button
 
 // Modal elements
 const settingsModal         = document.getElementById('settingsModal');
@@ -150,6 +163,7 @@ const openSettingsBtn       = document.getElementById('openSettingsBtn');
 const closeSettingsBtn      = document.getElementById('closeSettingsBtn');
 const saveSettingsBtn       = document.getElementById('saveSettingsBtn');
 const apiKeyInput           = document.getElementById('apiKeyInput');
+const modelSelect           = document.getElementById('modelSelect'); // NEW
 
 // Recent Modal
 const recentBtn         = document.getElementById('recentBtn');
@@ -182,13 +196,15 @@ const failBtn           = document.getElementById('failBtn');
 
 // ------------- State ------------- //
 let apiKey = '';
+let model = 'gpt-4o-mini';  // default model
 let currentFileName = null;
 let pages = [];        // array of pages, each page is an array of lines
 let currentPageIndex = 0;
 let totalPages = 0;
-let wordsData = [];    // {word, sentence, translation, box} -- leitner data
+let wordsData = [];    // {id, word, sentence, translation, box, page}
 let quizQueue = [];    // For quiz usage
 let quizCurrentIndex = 0;
+let previousPageIndex = null; // For the "return" button logic
 
 // ------------- On Load ------------- //
 window.addEventListener('DOMContentLoaded', () => {
@@ -196,6 +212,17 @@ window.addEventListener('DOMContentLoaded', () => {
   const storedApiKey = localStorage.getItem('openai_api_key');
   if (storedApiKey) {
     apiKey = storedApiKey;
+  }
+
+  // Load stored model
+  const storedModel = localStorage.getItem('openai_model');
+  if (storedModel) {
+    model = storedModel;
+  }
+
+  // Set model select in UI
+  if (modelSelect) {
+    modelSelect.value = model;
   }
 
   // Load stored words data
@@ -223,6 +250,7 @@ window.addEventListener('DOMContentLoaded', () => {
 openSettingsBtn.addEventListener('click', () => {
   settingsModal.style.display = 'flex';
   apiKeyInput.value = apiKey;
+  modelSelect.value = model; // refresh
 });
 closeSettingsBtn.addEventListener('click', () => {
   settingsModal.style.display = 'none';
@@ -230,6 +258,10 @@ closeSettingsBtn.addEventListener('click', () => {
 saveSettingsBtn.addEventListener('click', () => {
   apiKey = apiKeyInput.value.trim();
   localStorage.setItem('openai_api_key', apiKey);
+
+  model = modelSelect.value;
+  localStorage.setItem('openai_model', model);
+
   settingsModal.style.display = 'none';
 });
 
@@ -343,6 +375,9 @@ function setupPagination(rawText) {
     prevPageBtn.disabled = true;
     nextPageBtn.disabled = true;
   }
+
+  // Enable Translate button if we have pages
+  translatePageBtn.disabled = (totalPages === 0);
 }
 
 // Load saved page from localStorage for the current file
@@ -408,7 +443,7 @@ function renderPage(pageIndex) {
 
   const lines = pages[pageIndex];
   const htmlLines = lines.map((line, lineIndex) => {
-    const tokens = line.split(/(\s+)/);
+    const tokens = line.split(/(\s+)/); 
     const wrappedLine = tokens.map((token, tokenIndex) => {
       if (token.trim() === '') {
         return token; // whitespace
@@ -425,7 +460,7 @@ function renderPage(pageIndex) {
 
   textContainer.innerHTML = htmlLines.join('\n');
   // Jump to top
-  textContainer.scrollTop = 0; // NEW: jump to top
+  textContainer.scrollTop = 0;
 
   pageIndicator.textContent = `Page ${pageIndex + 1} / ${totalPages}`;
   const wordSpans = textContainer.querySelectorAll('.word');
@@ -459,14 +494,29 @@ async function onWordClick(e) {
 // ------------- Utility: store word data ------------- //
 function storeWordData(word, sentence, translation) {
   // check if we already have this exact word+sentence
-  const existing = wordsData.find(w => w.word === word && w.sentence === sentence);
-  if (existing) {
-    // Optionally update translation if you want to refresh it:
-    existing.translation = translation;
+  // but we also rely on an ID to handle duplicates properly
+  const existingIndex = wordsData.findIndex(w => w.word === word && w.sentence === sentence);
+  if (existingIndex !== -1) {
+    // update translation, preserve box
+    wordsData[existingIndex].translation = translation;
   } else {
-    wordsData.push({ word, sentence, translation, box: 1 });
+    // add new entry with unique id
+    const newItem = {
+      id: generateId(),
+      word,
+      sentence,
+      translation,
+      box: 1,
+      page: currentPageIndex // store the page where user clicked
+    };
+    wordsData.push(newItem);
   }
   localStorage.setItem('words_data', JSON.stringify(wordsData));
+}
+
+function generateId() {
+  // quick unique ID
+  return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
 
 // ------------- Return a truncated sentence around the word ------------- //
@@ -503,12 +553,12 @@ async function fetchDefinition(word, sentence) {
       role: 'system',
       content: `Give the translation to the word, given the context. Also give the dictionary form of the word, the most important forms, including accent marks and a translation of the whole sentence.
 
-      For Russian words, make sure to add stress marks to all Russian words.
+      For example, for the French word 'pommes' in 'Il mange des pommes.' the output would be: 
+      He eats apples.
+
+ For Russian words, add stress marks to all Russian words.
       For Russian verbs, give the infinitive of the verb and also add the corresponding imperfective/perfect form to the dictionary form, e.g. (встрять, impf встрева́ть) or (встрева́ть, pf. встрять)
 
-For example, for the French word 'pommes' in 'Il mange des pommes.' the output would be: 
-apples [la pomme] (pomme, pommes)
-He eats apples.
       `
     },
     {
@@ -518,7 +568,7 @@ He eats apples.
   ];
 
   const body = {
-    model: DEFAULT_MODEL,
+    model: model, // use selected model
     messages,
     temperature: 0,
     max_tokens: 100,
@@ -618,7 +668,6 @@ function renderRecentBooks() {
     div.className = 'recentBookItem';
     div.textContent = item.fileName;
     div.addEventListener('click', () => {
-      // Attempt to load from localStorage
       const storageKey = 'fileContent_' + item.fileName;
       loadBookFromLocalStorage(item.fileName, storageKey);
       recentModal.style.display = 'none';
@@ -647,10 +696,13 @@ function renderWordList() {
     const row = document.createElement('div');
     row.classList.add('reviewWordRow');
     row.innerHTML = `
-      <strong>${w.word}</strong> - Box ${w.box}
-      <br><em>${w.sentence}</em>
-      <br>${w.translation}
-      <button class="deleteWordBtn" data-idx="${idx}">Delete</button>
+      <strong>${w.word}</strong> - Box ${w.box}<br>
+      <em>${w.sentence}</em><br>
+      ${w.translation}<br>
+      Page: ${w.page+1}
+      <br>
+      <button class="openPageBtn" data-id="${w.id}">Open Page</button>
+      <button class="deleteWordBtn" data-id="${w.id}">Delete</button>
     `;
     container.appendChild(row);
   });
@@ -658,18 +710,32 @@ function renderWordList() {
   wordList.innerHTML = '';
   wordList.appendChild(container);
 
-  // attach delete event
+  // attach click events
   const deleteBtns = wordList.querySelectorAll('.deleteWordBtn');
   deleteBtns.forEach(btn => {
     btn.addEventListener('click', (evt) => {
-      // We need the original index in *filtered*, must carefully remove from wordsData
-      const localIdx = parseInt(evt.target.dataset.idx, 10);
-      // localIdx is the index in the filtered array
-      const toDelete = filtered[localIdx];
-      // remove from wordsData
-      wordsData = wordsData.filter(w => !(w.word === toDelete.word && w.sentence === toDelete.sentence));
+      const targetId = evt.target.dataset.id;
+      wordsData = wordsData.filter(w => w.id !== targetId);
       localStorage.setItem('words_data', JSON.stringify(wordsData));
       renderWordList();
+    });
+  });
+
+  const openPageBtns = wordList.querySelectorAll('.openPageBtn');
+  openPageBtns.forEach(btn => {
+    btn.addEventListener('click', (evt) => {
+      const targetId = evt.target.dataset.id;
+      const item = wordsData.find(w => w.id === targetId);
+      if (!item) return;
+      // remember old page
+      const oldPage = currentPageIndex;
+      currentPageIndex = item.page;
+      renderPage(currentPageIndex);
+      savePageIndex();
+      reviewModal.style.display = 'none';
+
+      // show the "Return" button so user can go back
+      showReturnButton(oldPage);
     });
   });
 }
@@ -680,9 +746,9 @@ reviewFilter.addEventListener('change', renderWordList);
 // Export TSV
 exportTSVBtn.addEventListener('click', () => {
   if (!wordsData.length) return;
-  let tsv = 'Word\tSentence\tTranslation\tBox\n';
+  let tsv = 'Word\tSentence\tTranslation\tBox\tPage\n';
   wordsData.forEach(w => {
-    tsv += `${w.word}\t${w.sentence}\t${w.translation}\t${w.box}\n`;
+    tsv += `${w.word}\t${w.sentence}\t${w.translation}\t${w.box}\t${w.page+1}\n`;
   });
 
   // Download
@@ -694,6 +760,22 @@ exportTSVBtn.addEventListener('click', () => {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+});
+
+// ------------- "Return" button logic ------------- //
+function showReturnButton(pageIndex) {
+  previousPageIndex = pageIndex;
+  returnToPageBtn.style.display = 'inline-block';
+}
+
+returnToPageBtn.addEventListener('click', () => {
+  if (previousPageIndex == null) return;
+  const target = previousPageIndex;
+  previousPageIndex = null;
+  currentPageIndex = target;
+  renderPage(currentPageIndex);
+  savePageIndex();
+  returnToPageBtn.style.display = 'none';
 });
 
 // ------------- Quiz Logic ------------- //
@@ -715,7 +797,8 @@ function startQuiz() {
     return;
   }
 
-  quizQueue = shuffleArray(filtered);
+  // shuffle
+  quizQueue = shuffleArray(filtered.map(item => ({...item})));
   quizCurrentIndex = 0;
 
   quizCardContent.innerHTML = '';
@@ -735,7 +818,6 @@ function renderQuizCard() {
   const mode = quizModeSelect.value;
   const data = quizQueue[quizCurrentIndex];
 
-  // Clear reveal section
   quizRevealSection.style.display = 'none';
   quizRevealContent.innerHTML = '';
 
@@ -743,10 +825,10 @@ function renderQuizCard() {
     // Mode 1: show original sentence with the word blanked out
     const blankedSentence = data.sentence.replace(data.word, '____');
     quizCardContent.innerHTML = `<strong>Sentence:</strong> ${blankedSentence}
-                                 <br>Translation:</strong> ${data.translation}
-    <br><em>What is the missing word?</em>`;
+                                 <br><strong>Translation:</strong> ${data.translation}
+                                 <br><em>What is the missing word?</em>`;
   } else {
-    // Mode 2: show the word, highlight it in sentence, but not the translation yet
+    // Mode 2: show the word in sentence, ask for translation
     const highlightSentence = data.sentence.replace(data.word, `<mark>${data.word}</mark>`);
     quizCardContent.innerHTML = `<strong>Sentence:</strong> ${highlightSentence}
                                  <br><em>What does the highlighted word mean?</em>`;
@@ -761,10 +843,8 @@ function revealQuizCard() {
   quizRevealSection.style.display = 'block';
 
   if (mode === '1') {
-    // fill in the missing word + show the translation response
-    quizRevealContent.innerHTML = `<strong>Word:</strong> ${data.word}<br><strong>`;
+    quizRevealContent.innerHTML = `<strong>Word:</strong> ${data.word}`;
   } else {
-    // Mode 2: show translation of the word
     quizRevealContent.innerHTML = `<strong>Translation:</strong> ${data.translation}`;
   }
 }
@@ -775,17 +855,15 @@ function gradeCard(passed) {
 
   // adjust leitner box
   if (passed) {
-    // move to next box, max is 5
     if (data.box < MAX_LEITNER_BOX) {
       data.box++;
     }
   } else {
-    // move back to box 1
     data.box = 1;
   }
 
-  // update the wordsData for that item
-  const idx = wordsData.findIndex(w => w.word === data.word && w.sentence === data.sentence);
+  // update the wordsData for that item by id
+  const idx = wordsData.findIndex(w => w.id === data.id);
   if (idx !== -1) {
     wordsData[idx].box = data.box;
   }
@@ -824,6 +902,165 @@ function escapeHtml(text) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+// ------------- Translate Page Logic ------------- //
+translatePageBtn.addEventListener('click', handleTranslatePage);
+
+async function handleTranslatePage() {
+  if (!pages.length) return;
+  if (!apiKey) {
+    alert('API Key not set. Go to Settings first.');
+    return;
+  }
+  // Disable button, show "Translating..."
+  translatePageBtn.disabled = true;
+  translatePageBtn.textContent = 'Translating...';
+
+  try {
+    // 1) Collect all sub-lines from the current page, split by punctuation
+    const lines = pages[currentPageIndex];
+    let subLines = [];
+    let lineMap = []; 
+    // lineMap will track how many sub-lines each original line produced
+    for (let i = 0; i < lines.length; i++) {
+      const splitted = lines[i]
+        .split(/[.?!;:,]/) // split by punctuation
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      // if the line is totally blank, push an empty string so we keep placeholders
+      if (!splitted.length && lines[i].trim() === '') {
+        splitted.push('');
+      }
+
+      subLines.push(...splitted);
+      lineMap.push(splitted.length);
+    }
+
+    // 2) Request translations (all sub-lines in one batch)
+    const translations = await fetchBatchTranslation(subLines);
+
+    // 3) Re-render page, *interleaving* each chunk with its translation
+    let outputHtml = '';
+    let pointer = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const originalLine = lines[i].trim();
+      const count = lineMap[i]; // how many sub-chunks this line had
+
+      // If it was a blank line
+      if (count === 0) {
+        outputHtml += '<br>'; 
+        continue;
+      }
+
+      // Split this line by punctuation to get each chunk
+      const splittedChunks = originalLine
+        .split(/[.?!;:,]/)
+        .map(s => s.trim())
+        .filter(ch => ch.length > 0);
+
+      // Rebuild each chunk with clickable words, then show translation
+      for (let c = 0; c < splittedChunks.length; c++) {
+        const chunk = splittedChunks[c];
+
+        // Tokenize chunk by whitespace for clickable words
+        const tokens = chunk.split(/(\s+)/);
+        const chunkHtml = tokens.map((token, idx) => {
+          if (token.trim() === '') {
+            return token;
+          } else {
+            return `<span 
+                      class="word"
+                      data-line-index="${i}"
+                      data-token-index="${idx}"
+                    >${escapeHtml(token)}</span>`;
+          }
+        }).join('');
+
+        // Original chunk
+        outputHtml += chunkHtml + '<br>';
+
+        // Corresponding translation
+        const t = translations[pointer] || '';
+        outputHtml += `<div class="translatedLine">${escapeHtml(t)}</div><br>`;
+        pointer++;
+      }
+    }
+
+    textContainer.innerHTML = outputHtml;
+    textContainer.scrollTop = 0;
+
+    // Re-attach click event for words
+    const wordSpans = textContainer.querySelectorAll('.word');
+    wordSpans.forEach(span => {
+      span.addEventListener('click', onWordClick);
+    });
+
+  } catch (err) {
+    console.error(err);
+    alert('Translation failed: ' + err.message);
+  } finally {
+    // Re-enable button
+    translatePageBtn.disabled = false;
+    translatePageBtn.textContent = 'Translate Page';
+  }
+}
+
+
+// ------------- Batch Translation Helper ------------- //
+async function fetchBatchTranslation(linesArr) {
+  if (!linesArr.length) return [];
+
+  const url = 'https://api.openai.com/v1/chat/completions';
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiKey}`,
+  };
+
+  // Construct a message telling GPT to translate each line in place
+  // We strongly instruct it to return exactly the same number of lines.
+  const systemPrompt = `You are a translator. The user will provide an array of lines in a foreign language.
+Translate each line into English, line by line, in the same order, returning exactly one translated line per input line.
+Do NOT add extra commentary or numbering. Only output translations.`;
+
+  const userContent = linesArr.join('\n');
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userContent }
+  ];
+
+  const body = {
+    model: model,
+    messages,
+    temperature: 0,
+    max_tokens: 1000
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(`Error from OpenAI: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (!data.choices || data.choices.length === 0) {
+    throw new Error('No response from OpenAI');
+  }
+
+  // The completion is presumably text with N lines, one for each input line.
+  // We'll split by \n to get them.
+  const text = data.choices[0].message.content.trim();
+  const lines = text.split('\n').map(l => l.trim());
+
+  // If the LLM lumps lines together, the user might see fewer lines.
+  // We assume well-behaved output. If needed, you can do more advanced splitting.
+  return lines;
 }
 </script>
 </body>
