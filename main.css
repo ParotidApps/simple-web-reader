@@ -46,6 +46,7 @@ main {
   margin-bottom: 0.5rem;
   line-height: 1.5;
   font-size: 1.2rem;
+  font-family: "Georgia";
   white-space: pre-line; /* Preserve newlines */
 }
 
