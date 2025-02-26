@@ -9,50 +9,67 @@
 <body>
 
 <header>
-  <button id="recentBtn">Recent</button>
-  <button id="reviewWordsBtn">Review Words</button>
-  <button id="toggleSearchBtn">Toggle Search</button>
-  <button id="openSettingsBtn">Settings</button>
-  <!-- This "Return to page" button is hidden by default -->
-  <button id="returnToPageBtn" style="display:none;">Return</button>
+  <!-- Hamburger button -->
+  <button id="menuBtn" class="hamburger">&#9776;</button>
+  <!-- Page navigation (shown only when a book is open) -->
+  <div id="pageNav" style="display:none;">
+    <button id="prevPageBtn" disabled>&lt; Prev Page</button>
+    <span id="pageIndicator" title="Click to go to page"></span>
+    <button id="nextPageBtn" disabled>Next Page &gt;</button>
+  </div>
 </header>
 
+<!-- Hamburger Menu Modal -->
+<div id="hamburgerMenu" class="menuModal" style="display:none;">
+  <ul>
+    <li><button id="menuReviewWordsBtn">Review Words</button></li>
+    <li><button id="menuToggleSearchBtn">Toggle Search</button></li>
+    <li><button id="menuSettingsBtn">Settings</button></li>
+    <!-- These options appear only when a book is open -->
+    <li id="bookOptions" style="display:none;">
+      <button id="menuCloseBookBtn">Close Book</button>
+      <button id="menuTranslateBtn">Translate</button>
+    </li>
+  </ul>
+</div>
+
 <main>
-  <div id="topControls">
-    <input type="file" id="fileInput" accept=".txt" />
-    <button id="prevPageBtn" disabled>&lt; Prev Page</button>
-    <button id="nextPageBtn" disabled>Next Page &gt;</button>
-    <span id="pageIndicator" title="Click to go to page"></span>
-    <!-- NEW Translate Page Button -->
-    <button id="translatePageBtn" disabled>Translate Page</button>
+  <!-- Shown when no book is open -->
+  <div id="openBookPrompt">
+    <div id="fileDropZone">
+      <input type="file" id="fileInput" accept=".txt" />
+      <p>Drag and drop a .txt book here, or click to choose a file.</p>
+    </div>
+    <div id="recentFiles">
+      <h3>Recent Books</h3>
+      <div id="recentBooksList"></div>
+    </div>
   </div>
 
-  <!-- Search controls -->
-  <div id="searchContainer" style="display:none;">
-    <input type="text" id="searchInput" placeholder="Search phrase..." style="flex:1;" />
-    <button id="searchBtn">Search</button>
+  <!-- Shown when a book is open -->
+  <div id="bookContainer" style="display:none;">
+    <!-- Search controls (can be toggled via the hamburger menu) -->
+    <div id="searchContainer" style="display:none;">
+      <input type="text" id="searchInput" placeholder="Search phrase..." style="flex:1;" />
+      <button id="searchBtn">Search</button>
+    </div>
+    <div id="searchResults"></div>
+    <div id="textContainer"></div>
+    <div id="definitionBox"><em>Definition will appear here when a word is clicked.</em></div>
   </div>
-  <div id="searchResults"></div>
-
-  <div id="textContainer"></div>
-  <div id="definitionBox"><em>Definition will appear here when a word is clicked.</em></div>
 </main>
 
-
-<!-- Modal for Settings -->
+<!-- Settings Modal -->
 <div id="settingsModal">
   <div id="settingsModalContent">
     <h2>Settings</h2>
     <label for="apiKeyInput">OpenAI API Key:</label>
     <input type="text" id="apiKeyInput" placeholder="Enter your OpenAI API key" />
-
-    <!-- NEW: Model picker -->
     <label for="modelSelect" style="margin-top:1rem;">Model:</label>
     <select id="modelSelect">
       <option value="gpt-4o">gpt-4o</option>
       <option value="gpt-4o-mini" selected>gpt-4o-mini (default)</option>
     </select>
-
     <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:1rem;">
       <button id="saveSettingsBtn">Save</button>
       <button id="closeSettingsBtn">Close</button>
@@ -60,18 +77,7 @@
   </div>
 </div>
 
-<!-- Modal for Recent Books -->
-<div id="recentModal">
-  <div id="recentModalContent">
-    <h2>Recently Opened Books</h2>
-    <div id="recentBooksList"></div>
-    <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:1rem;">
-      <button id="closeRecentBtn">Close</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal for Review Words -->
+<!-- Review Modal -->
 <div id="reviewModal">
   <div id="reviewModalContent">
     <h2>Review Words</h2>
@@ -95,7 +101,7 @@
   </div>
 </div>
 
-<!-- Modal for Quiz -->
+<!-- Quiz Modal -->
 <div id="quizModal">
   <div id="quizModalContent">
     <h2>Quiz</h2>
@@ -134,292 +140,267 @@
 </div>
 
 <script>
-// ------------- Constants ------------- //
-const PAGE_SIZE = 25; // number of lines per page
-const MAX_SENTENCE_LENGTH = 200; // max chars for "sentence" in definition prompt
-const MAX_STORAGE_SIZE = 1000000; // ~1MB limit for storing file text
-const MAX_LEITNER_BOX = 5; // 5 boxes for leitner system
+// ==================== Constants ==================== //
+const PAGE_SIZE = 25;
+const MAX_SENTENCE_LENGTH = 200;
+const MAX_STORAGE_SIZE = 1000000;
+const MAX_LEITNER_BOX = 5;
 
-// ------------- Elements ------------- //
-const fileInput         = document.getElementById('fileInput');
-const textContainer     = document.getElementById('textContainer');
-const definitionBox     = document.getElementById('definitionBox');
-const prevPageBtn       = document.getElementById('prevPageBtn');
-const nextPageBtn       = document.getElementById('nextPageBtn');
-const pageIndicator     = document.getElementById('pageIndicator');
-const translatePageBtn  = document.getElementById('translatePageBtn'); // NEW
-const searchInput       = document.getElementById('searchInput');
-const searchBtn         = document.getElementById('searchBtn');
-const searchResults     = document.getElementById('searchResults');
-const toggleSearchBtn   = document.getElementById('toggleSearchBtn');
+// ==================== Element References ==================== //
 
-const returnToPageBtn   = document.getElementById('returnToPageBtn'); // NEW "Return" button
+// Header & Menu
+const menuBtn = document.getElementById('menuBtn');
+const pageNav = document.getElementById('pageNav');
+const prevPageBtn = document.getElementById('prevPageBtn');
+const nextPageBtn = document.getElementById('nextPageBtn');
+const pageIndicator = document.getElementById('pageIndicator');
 
-// Modal elements
-const settingsModal         = document.getElementById('settingsModal');
-const settingsModalContent  = document.getElementById('settingsModalContent');
-const openSettingsBtn       = document.getElementById('openSettingsBtn');
-const closeSettingsBtn      = document.getElementById('closeSettingsBtn');
-const saveSettingsBtn       = document.getElementById('saveSettingsBtn');
-const apiKeyInput           = document.getElementById('apiKeyInput');
-const modelSelect           = document.getElementById('modelSelect'); // NEW
+const hamburgerMenu = document.getElementById('hamburgerMenu');
+const menuReviewWordsBtn = document.getElementById('menuReviewWordsBtn');
+const menuToggleSearchBtn = document.getElementById('menuToggleSearchBtn');
+const menuSettingsBtn = document.getElementById('menuSettingsBtn');
+const menuCloseBookBtn = document.getElementById('menuCloseBookBtn');
+const menuTranslateBtn = document.getElementById('menuTranslateBtn');
+const bookOptions = document.getElementById('bookOptions');
 
-// Recent Modal
-const recentBtn         = document.getElementById('recentBtn');
-const recentModal       = document.getElementById('recentModal');
-const closeRecentBtn    = document.getElementById('closeRecentBtn');
-const recentBooksList   = document.getElementById('recentBooksList');
+// Main views
+const openBookPrompt = document.getElementById('openBookPrompt');
+const fileDropZone = document.getElementById('fileDropZone');
+const fileInput = document.getElementById('fileInput');
+const recentBooksList = document.getElementById('recentBooksList');
+const bookContainer = document.getElementById('bookContainer');
+const textContainer = document.getElementById('textContainer');
+const definitionBox = document.getElementById('definitionBox');
+const searchContainer = document.getElementById('searchContainer');
+const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
+const searchResults = document.getElementById('searchResults');
 
-// Review Modal
-const reviewWordsBtn    = document.getElementById('reviewWordsBtn');
-const reviewModal       = document.getElementById('reviewModal');
-const closeReviewBtn    = document.getElementById('closeReviewBtn');
-const exportTSVBtn      = document.getElementById('exportTSVBtn');
-const wordList          = document.getElementById('wordList');
-const reviewFilter      = document.getElementById('reviewFilter');
-const openQuizBtn       = document.getElementById('openQuizBtn');
+// Modals and other UI elements
+const settingsModal = document.getElementById('settingsModal');
+const settingsModalContent = document.getElementById('settingsModalContent');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+const apiKeyInput = document.getElementById('apiKeyInput');
+const modelSelect = document.getElementById('modelSelect');
 
-// Quiz Modal
-const quizModal         = document.getElementById('quizModal');
-const closeQuizBtn      = document.getElementById('closeQuizBtn');
-const quizModeSelect    = document.getElementById('quizModeSelect');
-const quizBoxesSelect   = document.getElementById('quizBoxesSelect');
-const startQuizBtn      = document.getElementById('startQuizBtn');
-const quizCard          = document.getElementById('quizCard');
-const quizCardContent   = document.getElementById('quizCardContent');
-const revealBtn         = document.getElementById('revealBtn');
+const reviewModal = document.getElementById('reviewModal');
+const closeReviewBtn = document.getElementById('closeReviewBtn');
+const exportTSVBtn = document.getElementById('exportTSVBtn');
+const wordList = document.getElementById('wordList');
+const reviewFilter = document.getElementById('reviewFilter');
+const openQuizBtn = document.getElementById('openQuizBtn');
+
+const quizModal = document.getElementById('quizModal');
+const closeQuizBtn = document.getElementById('closeQuizBtn');
+const quizModeSelect = document.getElementById('quizModeSelect');
+const quizBoxesSelect = document.getElementById('quizBoxesSelect');
+const startQuizBtn = document.getElementById('startQuizBtn');
+const quizCard = document.getElementById('quizCard');
+const quizCardContent = document.getElementById('quizCardContent');
+const revealBtn = document.getElementById('revealBtn');
 const quizRevealSection = document.getElementById('quizRevealSection');
 const quizRevealContent = document.getElementById('quizRevealContent');
-const passBtn           = document.getElementById('passBtn');
-const failBtn           = document.getElementById('failBtn');
+const passBtn = document.getElementById('passBtn');
+const failBtn = document.getElementById('failBtn');
 
-// ------------- State ------------- //
+// ==================== Application State ==================== //
 let apiKey = '';
-let model = 'gpt-4o-mini';  // default model
+let model = 'gpt-4o-mini';
 let currentFileName = null;
-let pages = [];        // array of pages, each page is an array of lines
+let pages = [];
 let currentPageIndex = 0;
 let totalPages = 0;
-let wordsData = [];    // {id, word, sentence, translation, box, page}
-let quizQueue = [];    // For quiz usage
+let wordsData = [];
+let quizQueue = [];
 let quizCurrentIndex = 0;
-let previousPageIndex = null; // For the "return" button logic
 
-// ------------- On Load ------------- //
-window.addEventListener('DOMContentLoaded', () => {
-  // Load stored API key
-  const storedApiKey = localStorage.getItem('openai_api_key');
-  if (storedApiKey) {
-    apiKey = storedApiKey;
+// ==================== UI State Management ==================== //
+function updateUIState() {
+  const bookOpen = pages.length > 0;
+  if (bookOpen) {
+    // Show book view and header navigation when a book is open.
+    bookContainer.style.display = '';
+    openBookPrompt.style.display = 'none';
+    pageNav.style.display = 'flex';
+    bookOptions.style.display = '';
+  } else {
+    // When no book is open, show the drop zone with recent books and hide book-specific UI.
+    openBookPrompt.style.display = '';
+    bookContainer.style.display = 'none';
+    pageNav.style.display = 'none';
+    bookOptions.style.display = 'none';
   }
+}
 
-  // Load stored model
-  const storedModel = localStorage.getItem('openai_model');
-  if (storedModel) {
-    model = storedModel;
-  }
-
-  // Set model select in UI
-  if (modelSelect) {
-    modelSelect.value = model;
-  }
-
-  // Load stored words data
-  const storedWords = localStorage.getItem('words_data');
-  if (storedWords) {
-    try {
-      wordsData = JSON.parse(storedWords);
-    } catch(e) {
-      wordsData = [];
-    }
-  }
-
-  // Attempt to load last opened book automatically
-  const lastBook = localStorage.getItem('lastBook');
-  if (lastBook) {
-    const { fileName, storedTextKey } = JSON.parse(lastBook);
-    if (fileName && storedTextKey) {
-      loadBookFromLocalStorage(fileName, storedTextKey);
-    }
+// ==================== Hamburger Menu Handling ==================== //
+menuBtn.addEventListener('click', () => {
+  hamburgerMenu.style.display = (hamburgerMenu.style.display === 'block') ? 'none' : 'block';
+});
+document.addEventListener('click', (e) => {
+  if (!hamburgerMenu.contains(e.target) && e.target !== menuBtn) {
+    hamburgerMenu.style.display = 'none';
   }
 });
 
-// ------------- Modal Handling ------------- //
-// Settings
-openSettingsBtn.addEventListener('click', () => {
+menuReviewWordsBtn.addEventListener('click', () => {
+  reviewModal.style.display = 'flex';
+  renderWordList();
+  hamburgerMenu.style.display = 'none';
+});
+menuToggleSearchBtn.addEventListener('click', () => {
+  searchContainer.style.display = (searchContainer.style.display === 'flex' || searchContainer.style.display === '') ? 'none' : 'flex';
+  hamburgerMenu.style.display = 'none';
+});
+menuSettingsBtn.addEventListener('click', () => {
   settingsModal.style.display = 'flex';
   apiKeyInput.value = apiKey;
-  modelSelect.value = model; // refresh
+  modelSelect.value = model;
+  hamburgerMenu.style.display = 'none';
 });
-closeSettingsBtn.addEventListener('click', () => {
-  settingsModal.style.display = 'none';
+menuCloseBookBtn.addEventListener('click', () => {
+  pages = [];
+  currentFileName = null;
+  textContainer.innerHTML = '';
+  updateUIState();
+  hamburgerMenu.style.display = 'none';
 });
+menuTranslateBtn.addEventListener('click', () => {
+  handleTranslatePage();
+  hamburgerMenu.style.display = 'none';
+});
+
+// ==================== Modal Handling ==================== //
+// Settings Modal
+closeSettingsBtn.addEventListener('click', () => { settingsModal.style.display = 'none'; });
 saveSettingsBtn.addEventListener('click', () => {
   apiKey = apiKeyInput.value.trim();
   localStorage.setItem('openai_api_key', apiKey);
-
   model = modelSelect.value;
   localStorage.setItem('openai_model', model);
-
   settingsModal.style.display = 'none';
 });
 
-// Recent
-recentBtn.addEventListener('click', () => {
-  recentModal.style.display = 'flex';
-  renderRecentBooks();
-});
-closeRecentBtn.addEventListener('click', () => {
-  recentModal.style.display = 'none';
-});
+// Review Modal
+closeReviewBtn.addEventListener('click', () => { reviewModal.style.display = 'none'; });
 
-// Review Words
-reviewWordsBtn.addEventListener('click', () => {
-  reviewModal.style.display = 'flex';
-  renderWordList();
-});
-closeReviewBtn.addEventListener('click', () => {
-  reviewModal.style.display = 'none';
-});
+// Quiz Modal
+closeQuizBtn.addEventListener('click', () => { quizModal.style.display = 'none'; });
+openQuizBtn.addEventListener('click', () => { quizModal.style.display = 'flex'; });
 
-// Quiz
-closeQuizBtn.addEventListener('click', () => {
-  quizModal.style.display = 'none';
-});
-openQuizBtn.addEventListener('click', () => {
-  quizModal.style.display = 'flex';
-});
-
-// ------------- Toggling Search ------------- //
-toggleSearchBtn.addEventListener('click', () => {
-  const searchContainer = document.getElementById('searchContainer');
-  const searchResultsDiv = document.getElementById('searchResults');
-  if (searchContainer.style.display === 'none') {
-    searchContainer.style.display = '';
-    searchResultsDiv.style.display = '';
-  } else {
-    searchContainer.style.display = 'none';
-    searchResultsDiv.style.display = 'none';
-  }
-});
-
-// ------------- File Handling ------------- //
+// ==================== File Handling & Drag-and-Drop ==================== //
 fileInput.addEventListener('change', async (evt) => {
   const file = evt.target.files[0];
   if (!file) return;
+  loadFile(file);
+});
 
+function loadFile(file) {
   definitionBox.innerHTML = '<em>Definition will appear here when a word is clicked.</em>';
   textContainer.innerHTML = 'Loading file...';
   currentFileName = file.name;
-
   const reader = new FileReader();
   reader.onload = (e) => {
     const rawText = e.target.result;
-    // Try to store it in localStorage if not too big
     if (rawText.length <= MAX_STORAGE_SIZE) {
       const storageKey = 'fileContent_' + currentFileName;
       try {
         localStorage.setItem(storageKey, rawText);
-        // Save as lastBook
         localStorage.setItem('lastBook', JSON.stringify({ fileName: currentFileName, storedTextKey: storageKey }));
-        // Also add to recent
         addToRecentBooks(currentFileName);
       } catch(err) {
-        console.warn("Could not store file in localStorage. Possibly full or restricted.");
+        console.warn("Could not store file in localStorage.");
       }
     } else {
-      // If too big, we won't store it, but we still put a "lastBook" reference with no textKey
       localStorage.setItem('lastBook', JSON.stringify({ fileName: currentFileName, storedTextKey: null }));
       addToRecentBooks(currentFileName);
     }
-
     setupPagination(rawText);
     loadSavedPage();
     renderPage(currentPageIndex);
+    updateUIState();
   };
   reader.readAsText(file);
+}
+
+fileDropZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  fileDropZone.style.border = '2px dashed #007bff';
+});
+fileDropZone.addEventListener('dragleave', (e) => {
+  e.preventDefault();
+  fileDropZone.style.border = '';
+});
+fileDropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  fileDropZone.style.border = '';
+  if (e.dataTransfer.files.length > 0) {
+    loadFile(e.dataTransfer.files[0]);
+  }
 });
 
-// Attempt to load a book from localStorage given the fileName and the storedTextKey
+// ==================== Auto-load Last Book & Initialization ==================== //
+window.addEventListener('DOMContentLoaded', () => {
+  const storedApiKey = localStorage.getItem('openai_api_key');
+  if (storedApiKey) { apiKey = storedApiKey; }
+  const storedModel = localStorage.getItem('openai_model');
+  if (storedModel) { model = storedModel; }
+  modelSelect.value = model;
+  const storedWords = localStorage.getItem('words_data');
+  if (storedWords) {
+    try { wordsData = JSON.parse(storedWords); } catch(e) { wordsData = []; }
+  }
+  const lastBook = localStorage.getItem('lastBook');
+  if (lastBook) {
+    const { fileName, storedTextKey } = JSON.parse(lastBook);
+    if (fileName && storedTextKey) { loadBookFromLocalStorage(fileName, storedTextKey); }
+  }
+  updateUIState();
+});
+
+// ==================== Loading from LocalStorage ==================== //
 function loadBookFromLocalStorage(fileName, storedTextKey) {
-  if (!storedTextKey) {
-    // No text stored, so we can't auto-load
-    return;
-  }
+  if (!storedTextKey) return;
   const rawText = localStorage.getItem(storedTextKey);
-  if (!rawText) {
-    return;
-  }
+  if (!rawText) return;
   currentFileName = fileName;
   setupPagination(rawText);
   loadSavedPage();
   renderPage(currentPageIndex);
+  updateUIState();
 }
 
-// ------------- Pagination Setup ------------- //
+// ==================== Pagination ==================== //
 function setupPagination(rawText) {
   const lines = rawText.split(/\r?\n/);
   pages = [];
   for (let i = 0; i < lines.length; i += PAGE_SIZE) {
-    const pageLines = lines.slice(i, i + PAGE_SIZE);
-    pages.push(pageLines);
+    pages.push(lines.slice(i, i + PAGE_SIZE));
   }
   totalPages = pages.length;
   currentPageIndex = 0;
-
-  if (totalPages > 1) {
-    prevPageBtn.disabled = false;
-    nextPageBtn.disabled = false;
-  } else {
-    prevPageBtn.disabled = true;
-    nextPageBtn.disabled = true;
-  }
-
-  // Enable Translate button if we have pages
-  translatePageBtn.disabled = (totalPages === 0);
+  prevPageBtn.disabled = totalPages <= 1;
+  nextPageBtn.disabled = totalPages <= 1;
 }
 
-// Load saved page from localStorage for the current file
 function loadSavedPage() {
   if (!currentFileName) return;
   const key = `pageIndex_${currentFileName}`;
   const storedIndex = localStorage.getItem(key);
   if (storedIndex) {
     const idx = parseInt(storedIndex, 10);
-    if (!isNaN(idx) && idx >= 0 && idx < totalPages) {
-      currentPageIndex = idx;
-    }
+    if (!isNaN(idx) && idx >= 0 && idx < totalPages) { currentPageIndex = idx; }
   }
 }
 
-// Save current page index to localStorage
 function savePageIndex() {
   if (!currentFileName) return;
-  const key = `pageIndex_${currentFileName}`;
-  localStorage.setItem(key, currentPageIndex);
+  localStorage.setItem(`pageIndex_${currentFileName}`, currentPageIndex);
 }
 
-// ------------- Pagination Controls ------------- //
+// ==================== Pagination Controls ==================== //
 prevPageBtn.addEventListener('click', goPrevPage);
 nextPageBtn.addEventListener('click', goNextPage);
-
-function goPrevPage() {
-  if (currentPageIndex > 0) {
-    currentPageIndex--;
-    renderPage(currentPageIndex);
-    savePageIndex();
-  }
-}
-
-function goNextPage() {
-  if (currentPageIndex < totalPages - 1) {
-    currentPageIndex++;
-    renderPage(currentPageIndex);
-    savePageIndex();
-  }
-}
-
-// Jump to page number after user input
 pageIndicator.addEventListener('click', () => {
   if (!pages.length) return;
   const userInput = prompt(`Enter a page number (1 - ${totalPages})`);
@@ -432,81 +413,62 @@ pageIndicator.addEventListener('click', () => {
   }
 });
 
-// ------------- Render Page ------------- //
+function goPrevPage() {
+  if (currentPageIndex > 0) { currentPageIndex--; renderPage(currentPageIndex); savePageIndex(); }
+}
+function goNextPage() {
+  if (currentPageIndex < totalPages - 1) { currentPageIndex++; renderPage(currentPageIndex); savePageIndex(); }
+}
+
+// ==================== Render Page ==================== //
 function renderPage(pageIndex) {
   if (pageIndex < 0 || pageIndex >= totalPages) {
     textContainer.innerHTML = 'No content.';
     pageIndicator.textContent = '';
     return;
   }
-
   const lines = pages[pageIndex];
   const htmlLines = lines.map((line, lineIndex) => {
-    const tokens = line.split(/(\s+)/); 
-    const wrappedLine = tokens.map((token, tokenIndex) => {
-      if (token.trim() === '') {
-        return token; // whitespace
-      } else {
-        return `<span 
-                  class="word" 
-                  data-line-index="${lineIndex}" 
-                  data-token-index="${tokenIndex}"
-                >${escapeHtml(token)}</span>`;
-      }
-    }).join('');
-    return wrappedLine;
+    return line.split(/(\s+)/)
+      .map(token => token.trim() === '' ? token : `<span class="word" data-line-index="${lineIndex}">${escapeHtml(token)}</span>`)
+      .join('');
   });
-
   textContainer.innerHTML = htmlLines.join('\n');
-  // Jump to top
   textContainer.scrollTop = 0;
-
   pageIndicator.textContent = `Page ${pageIndex + 1} / ${totalPages}`;
-  const wordSpans = textContainer.querySelectorAll('.word');
-  wordSpans.forEach(span => {
-    span.addEventListener('click', onWordClick);
-  });
+  document.querySelectorAll('.word').forEach(span => span.addEventListener('click', onWordClick));
 }
 
-// ------------- Word Click / Definition ------------- //
+// ==================== Word Click / Definition ==================== //
 async function onWordClick(e) {
   const clickedToken = e.target.textContent;
   const lineIndex = parseInt(e.target.dataset.lineIndex, 10);
   const line = pages[currentPageIndex][lineIndex] || '';
-
   definitionBox.innerHTML = 'Fetching definition...';
-
   try {
     const truncatedSentence = truncateSentence(line, clickedToken, MAX_SENTENCE_LENGTH);
     const definition = await fetchDefinition(clickedToken, truncatedSentence);
     definitionBox.innerHTML = `<strong>${clickedToken}:</strong> ${definition}`;
-
-    // Store the word data in localStorage for review (Leitner)
     storeWordData(clickedToken, truncatedSentence, definition);
-
   } catch (error) {
     console.error(error);
     definitionBox.innerHTML = 'Error fetching definition.';
   }
 }
 
-// ------------- Utility: store word data ------------- //
+// ==================== Word Data & Utilities ==================== //
 function storeWordData(word, sentence, translation) {
-  // check if we already have this exact word+sentence
-  // but we also rely on an ID to handle duplicates properly
   const existingIndex = wordsData.findIndex(w => w.word === word && w.sentence === sentence);
   if (existingIndex !== -1) {
-    // update translation, preserve box
     wordsData[existingIndex].translation = translation;
   } else {
-    // add new entry with unique id
     const newItem = {
       id: generateId(),
       word,
       sentence,
       translation,
       box: 1,
-      page: currentPageIndex // store the page where user clicked
+      page: currentPageIndex
     };
     wordsData.push(newItem);
   }
@@ -514,155 +476,87 @@ function storeWordData(word, sentence, translation) {
 }
 
 function generateId() {
-  // quick unique ID
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
 
-// ------------- Return a truncated sentence around the word ------------- //
 function truncateSentence(line, word, maxLen) {
   if (line.length <= maxLen) return line;
   const idx = line.indexOf(word);
-  if (idx === -1) {
-    return line.substring(0, maxLen) + '...';
-  }
+  if (idx === -1) { return line.substring(0, maxLen) + '...'; }
   const half = Math.floor(maxLen / 2);
   let start = Math.max(0, idx - half);
-  let end   = Math.min(line.length, idx + word.length + half);
-  if (end - start < maxLen) {
-    end = Math.min(line.length, start + maxLen);
-  }
+  let end = Math.min(line.length, idx + word.length + half);
+  if (end - start < maxLen) { end = Math.min(line.length, start + maxLen); }
   let snippet = line.substring(start, end);
-  if (start > 0) snippet = '...' + snippet;
-  if (end < line.length) snippet += '...';
+  if (start > 0) { snippet = '...' + snippet; }
+  if (end < line.length) { snippet += '...'; }
   return snippet;
 }
 
-// ------------- Definition Fetching ------------- //
 async function fetchDefinition(word, sentence) {
   if (!apiKey) throw new Error('API Key not set. Please go to Settings.');
-
   const url = 'https://api.openai.com/v1/chat/completions';
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${apiKey}`,
-  };
-
+  const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` };
   const messages = [
-    {
-      role: 'system',
-      content: `Give the translation to the word, given the context. Also give the dictionary form of the word, the most important forms, including accent marks and a translation of the whole sentence.
+    { role: 'system', content: `Give the translation to the word, given the context. Also give the dictionary form of the word (with its most important forms and accent marks) along with a translation of the whole sentence.
 
-      For example, for the French word 'pommes' in 'Il mange des pommes.' the output would be: 
-      apples [la pomme] (pomme, pommes)
-      He eats apples.
+For example, for the French word 'pommes' in 'Il mange des pommes.' the output would be: 
+apples [la pomme] (pomme, pommes)
+He eats apples.
 
- For Russian words, add stress marks to all Russian words.
-      For Russian verbs, give the infinitive of the verb and also add the corresponding imperfective/perfect form to the dictionary form, e.g. (встрять, impf встрева́ть) or (встрева́ть, pf. встрять)
-
-      `
-    },
-    {
-      role: 'user',
-      content: `Word: ${word}\nSentence: ${sentence}`
-    }
+For Russian words, add stress marks and for verbs include both infinitive and the corresponding aspect forms.` },
+    { role: 'user', content: `Word: ${word}\nSentence: ${sentence}` }
   ];
-
-  const body = {
-    model: model, // use selected model
-    messages,
-    temperature: 0,
-    max_tokens: 100,
-  };
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    throw new Error(`Error from OpenAI: ${response.statusText}`);
-  }
-
+  const body = { model, messages, temperature: 0, max_tokens: 100 };
+  const response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+  if (!response.ok) { throw new Error(`Error from OpenAI: ${response.statusText}`); }
   const data = await response.json();
-  if (!data.choices || data.choices.length === 0) {
-    throw new Error('No response from OpenAI');
-  }
+  if (!data.choices || data.choices.length === 0) { throw new Error('No response from OpenAI'); }
   return data.choices[0].message.content.trim();
 }
 
-// ------------- Search Function ------------- //
+// ==================== Search ==================== //
 searchBtn.addEventListener('click', () => {
   const phrase = searchInput.value.trim();
   if (!phrase || !pages.length) return;
-
   searchResults.innerHTML = 'Searching...';
   const hits = [];
-
   for (let p = 0; p < pages.length; p++) {
-    const pageText = pages[p].join('\n');
-    if (pageText.toLowerCase().includes(phrase.toLowerCase())) {
-      hits.push(p);
-    }
+    if (pages[p].join('\n').toLowerCase().includes(phrase.toLowerCase())) { hits.push(p); }
   }
-
-  if (hits.length === 0) {
-    searchResults.innerHTML = '<em>No pages found.</em>';
-    return;
-  }
-
+  if (!hits.length) { searchResults.innerHTML = '<em>No pages found.</em>'; return; }
   const frag = document.createDocumentFragment();
   hits.forEach(pageIndex => {
     const div = document.createElement('div');
     div.classList.add('searchHit');
     div.textContent = `Page ${pageIndex + 1}`;
-    div.addEventListener('click', () => {
-      currentPageIndex = pageIndex;
-      renderPage(currentPageIndex);
-      savePageIndex();
-    });
+    div.addEventListener('click', () => { currentPageIndex = pageIndex; renderPage(currentPageIndex); savePageIndex(); });
     frag.appendChild(div);
   });
   searchResults.innerHTML = '';
   searchResults.appendChild(frag);
 });
 
-// ------------- Recent Books ------------- //
+// ==================== Recent Books ==================== //
 function addToRecentBooks(fileName) {
   const key = 'recentBooks';
   let arr = [];
   const stored = localStorage.getItem(key);
-  if (stored) {
-    try {
-      arr = JSON.parse(stored);
-    } catch(e){}
-  }
-  // remove any existing entry for this file
+  if (stored) { try { arr = JSON.parse(stored); } catch(e) {} }
   arr = arr.filter(item => item.fileName !== fileName);
-  // push new entry
-  arr.unshift({fileName, date: new Date().toISOString()});
-  // limit to 10
+  arr.unshift({ fileName, date: new Date().toISOString() });
   arr = arr.slice(0, 10);
   localStorage.setItem(key, JSON.stringify(arr));
+  renderRecentBooks();
 }
 
 function renderRecentBooks() {
   recentBooksList.innerHTML = '';
   const stored = localStorage.getItem('recentBooks');
-  if (!stored) {
-    recentBooksList.innerHTML = '<em>No recent books.</em>';
-    return;
-  }
+  if (!stored) { recentBooksList.innerHTML = '<em>No recent books.</em>'; return; }
   let arr = [];
-  try {
-    arr = JSON.parse(stored);
-  } catch(e) {
-    recentBooksList.innerHTML = '<em>No recent books.</em>';
-    return;
-  }
-  if (!arr.length) {
-    recentBooksList.innerHTML = '<em>No recent books.</em>';
-    return;
-  }
+  try { arr = JSON.parse(stored); } catch(e) { recentBooksList.innerHTML = '<em>No recent books.</em>'; return; }
+  if (!arr.length) { recentBooksList.innerHTML = '<em>No recent books.</em>'; return; }
   arr.forEach(item => {
     const div = document.createElement('div');
     div.className = 'recentBookItem';
@@ -670,49 +564,34 @@ function renderRecentBooks() {
     div.addEventListener('click', () => {
       const storageKey = 'fileContent_' + item.fileName;
       loadBookFromLocalStorage(item.fileName, storageKey);
-      recentModal.style.display = 'none';
     });
     recentBooksList.appendChild(div);
   });
 }
 
-// ------------- Review Words ------------- //
+// ==================== Review Words ==================== //
 function renderWordList() {
-  // Filter by box if not "all"
   const boxFilter = reviewFilter.value;
   let filtered = [...wordsData];
   if (boxFilter !== 'all') {
-    const bf = parseInt(boxFilter, 10);
-    filtered = filtered.filter(w => w.box === bf);
+    filtered = filtered.filter(w => w.box === parseInt(boxFilter, 10));
   }
-
-  if (!filtered.length) {
-    wordList.innerHTML = '<em>No words found in this box.</em>';
-    return;
-  }
-
+  if (!filtered.length) { wordList.innerHTML = '<em>No words found in this box.</em>'; return; }
   const container = document.createElement('div');
-  filtered.forEach((w, idx) => {
+  filtered.forEach(w => {
     const row = document.createElement('div');
     row.classList.add('reviewWordRow');
-    row.innerHTML = `
-      <strong>${w.word}</strong> - Box ${w.box}<br>
-      <em>${w.sentence}</em><br>
-      ${w.translation}<br>
-      Page: ${w.page+1}
-      <br>
-      <button class="openPageBtn" data-id="${w.id}">Open Page</button>
-      <button class="deleteWordBtn" data-id="${w.id}">Delete</button>
-    `;
+    row.innerHTML = `<strong>${w.word}</strong> - Box ${w.box}<br>
+                     <em>${w.sentence}</em><br>
+                     ${w.translation}<br>
+                     Page: ${w.page+1}<br>
+                     <button class="openPageBtn" data-id="${w.id}">Open Page</button>
+                     <button class="deleteWordBtn" data-id="${w.id}">Delete</button>`;
     container.appendChild(row);
   });
-
   wordList.innerHTML = '';
   wordList.appendChild(container);
-
-  // attach click events
-  const deleteBtns = wordList.querySelectorAll('.deleteWordBtn');
-  deleteBtns.forEach(btn => {
+  document.querySelectorAll('.deleteWordBtn').forEach(btn => {
     btn.addEventListener('click', (evt) => {
       const targetId = evt.target.dataset.id;
       wordsData = wordsData.filter(w => w.id !== targetId);
@@ -720,38 +599,25 @@ function renderWordList() {
       renderWordList();
     });
   });
-
-  const openPageBtns = wordList.querySelectorAll('.openPageBtn');
-  openPageBtns.forEach(btn => {
+  document.querySelectorAll('.openPageBtn').forEach(btn => {
     btn.addEventListener('click', (evt) => {
       const targetId = evt.target.dataset.id;
       const item = wordsData.find(w => w.id === targetId);
       if (!item) return;
-      // remember old page
-      const oldPage = currentPageIndex;
       currentPageIndex = item.page;
       renderPage(currentPageIndex);
       savePageIndex();
       reviewModal.style.display = 'none';
-
-      // show the "Return" button so user can go back
-      showReturnButton(oldPage);
     });
   });
 }
-
-// On filter change, re-render the list
 reviewFilter.addEventListener('change', renderWordList);
-
-// Export TSV
 exportTSVBtn.addEventListener('click', () => {
   if (!wordsData.length) return;
   let tsv = 'Word\tSentence\tTranslation\tBox\tPage\n';
   wordsData.forEach(w => {
     tsv += `${w.word}\t${w.sentence}\t${w.translation}\t${w.box}\t${w.page+1}\n`;
   });
-
-  // Download
   const blob = new Blob([tsv], { type: 'text/tab-separated-values' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -762,50 +628,24 @@ exportTSVBtn.addEventListener('click', () => {
   document.body.removeChild(a);
 });
 
-// ------------- "Return" button logic ------------- //
-function showReturnButton(pageIndex) {
-  previousPageIndex = pageIndex;
-  returnToPageBtn.style.display = 'inline-block';
-}
-
-returnToPageBtn.addEventListener('click', () => {
-  if (previousPageIndex == null) return;
-  const target = previousPageIndex;
-  previousPageIndex = null;
-  currentPageIndex = target;
-  renderPage(currentPageIndex);
-  savePageIndex();
-  returnToPageBtn.style.display = 'none';
-});
-
-// ------------- Quiz Logic ------------- //
+// ==================== Quiz Logic ==================== //
 startQuizBtn.addEventListener('click', startQuiz);
 revealBtn.addEventListener('click', revealQuizCard);
 passBtn.addEventListener('click', () => gradeCard(true));
 failBtn.addEventListener('click', () => gradeCard(false));
 
 function startQuiz() {
-  // gather words based on boxes selection
-  const boxSelection = quizBoxesSelect.value;
   let filtered = [...wordsData];
-  if (boxSelection !== 'all') {
-    const boxNum = parseInt(boxSelection, 10);
-    filtered = filtered.filter(w => w.box === boxNum);
+  if (quizBoxesSelect.value !== 'all') {
+    filtered = filtered.filter(w => w.box === parseInt(quizBoxesSelect.value, 10));
   }
-  if (!filtered.length) {
-    alert('No words in selected box(es).');
-    return;
-  }
-
-  // shuffle
+  if (!filtered.length) { alert('No words in selected box(es).'); return; }
   quizQueue = shuffleArray(filtered.map(item => ({...item})));
   quizCurrentIndex = 0;
-
   quizCardContent.innerHTML = '';
   quizRevealContent.innerHTML = '';
   quizRevealSection.style.display = 'none';
   quizCard.style.display = 'block';
-
   renderQuizCard();
 }
 
@@ -817,21 +657,17 @@ function renderQuizCard() {
   }
   const mode = quizModeSelect.value;
   const data = quizQueue[quizCurrentIndex];
-
   quizRevealSection.style.display = 'none';
   quizRevealContent.innerHTML = '';
-
   if (mode === '1') {
-    // Mode 1: show original sentence with the word blanked out
     const blankedSentence = data.sentence.replace(data.word, '____');
-    quizCardContent.innerHTML = `<strong>Sentence:</strong> ${blankedSentence}
-                                 <br><strong>Translation:</strong> ${data.translation}
-                                 <br><em>What is the missing word?</em>`;
+    quizCardContent.innerHTML = `<strong>Sentence:</strong> ${blankedSentence}<br>
+                                 <strong>Translation:</strong> ${data.translation}<br>
+                                 <em>What is the missing word?</em>`;
   } else {
-    // Mode 2: show the word in sentence, ask for translation
     const highlightSentence = data.sentence.replace(data.word, `<mark>${data.word}</mark>`);
-    quizCardContent.innerHTML = `<strong>Sentence:</strong> ${highlightSentence}
-                                 <br><em>What does the highlighted word mean?</em>`;
+    quizCardContent.innerHTML = `<strong>Sentence:</strong> ${highlightSentence}<br>
+                                 <em>What does the highlighted word mean?</em>`;
   }
 }
 
@@ -839,41 +675,22 @@ function revealQuizCard() {
   if (quizCurrentIndex >= quizQueue.length) return;
   const data = quizQueue[quizCurrentIndex];
   const mode = quizModeSelect.value;
-
   quizRevealSection.style.display = 'block';
-
-  if (mode === '1') {
-    quizRevealContent.innerHTML = `<strong>Word:</strong> ${data.word}`;
-  } else {
-    quizRevealContent.innerHTML = `<strong>Translation:</strong> ${data.translation}`;
-  }
+  quizRevealContent.innerHTML = (mode === '1') ? `<strong>Word:</strong> ${data.word}` : `<strong>Translation:</strong> ${data.translation}`;
 }
 
 function gradeCard(passed) {
   if (quizCurrentIndex >= quizQueue.length) return;
   const data = quizQueue[quizCurrentIndex];
-
-  // adjust leitner box
-  if (passed) {
-    if (data.box < MAX_LEITNER_BOX) {
-      data.box++;
-    }
-  } else {
-    data.box = 1;
-  }
-
-  // update the wordsData for that item by id
+  if (passed) { if (data.box < MAX_LEITNER_BOX) data.box++; }
+  else { data.box = 1; }
   const idx = wordsData.findIndex(w => w.id === data.id);
-  if (idx !== -1) {
-    wordsData[idx].box = data.box;
-  }
+  if (idx !== -1) { wordsData[idx].box = data.box; }
   localStorage.setItem('words_data', JSON.stringify(wordsData));
-
   quizCurrentIndex++;
   renderQuizCard();
 }
 
-// Simple shuffle
 function shuffleArray(arr) {
   let array = [...arr];
   for (let i = array.length - 1; i > 0; i--) {
@@ -883,185 +700,105 @@ function shuffleArray(arr) {
   return array;
 }
 
-// ------------- Keyboard Navigation (left/right arrows) ------------- //
 document.addEventListener('keydown', (e) => {
-  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
-    return; // don't interfere with text inputs
-  }
-  if (e.key === 'ArrowLeft') {
-    goPrevPage();
-  } else if (e.key === 'ArrowRight') {
-    goNextPage();
-  }
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowLeft') goPrevPage();
+  else if (e.key === 'ArrowRight') goNextPage();
 });
 
-// ------------- Utility ------------- //
 function escapeHtml(text) {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return text.replace(/&/g, '&amp;')
+             .replace(/</g, '&lt;')
+             .replace(/>/g, '&gt;')
+             .replace(/"/g, '&quot;');
 }
-
-// ------------- Translate Page Logic ------------- //
-translatePageBtn.addEventListener('click', handleTranslatePage);
 
 async function handleTranslatePage() {
   if (!pages.length) return;
-  if (!apiKey) {
-    alert('API Key not set. Go to Settings first.');
-    return;
-  }
-  // Disable button, show "Translating..."
-  translatePageBtn.disabled = true;
-  translatePageBtn.textContent = 'Translating...';
-
+  if (!apiKey) { alert('API Key not set. Go to Settings first.'); return; }
+  menuTranslateBtn.disabled = true;
+  menuTranslateBtn.textContent = 'Translating...';
   try {
-    // 1) Collect all sub-lines from the current page, split by punctuation
     const lines = pages[currentPageIndex];
     let subLines = [];
-    let lineMap = []; 
-    // lineMap will track how many sub-lines each original line produced
+    let lineMap = [];
     for (let i = 0; i < lines.length; i++) {
-      const splitted = lines[i]
-        .split(/[.?!;:,]/) // split by punctuation
-        .map(s => s.trim())
-        .filter(Boolean);
-
-      // if the line is totally blank, push an empty string so we keep placeholders
-      if (!splitted.length && lines[i].trim() === '') {
-        splitted.push('');
-      }
-
+      const splitted = lines[i].split(/[.?!;:,]/).map(s => s.trim()).filter(Boolean);
+      if (!splitted.length && lines[i].trim() === '') { splitted.push(''); }
       subLines.push(...splitted);
       lineMap.push(splitted.length);
     }
-
-    // 2) Request translations (all sub-lines in one batch)
     const translations = await fetchBatchTranslation(subLines);
-
-    // 3) Re-render page, *interleaving* each chunk with its translation
     let outputHtml = '';
     let pointer = 0;
-
     for (let i = 0; i < lines.length; i++) {
       const originalLine = lines[i].trim();
-      const count = lineMap[i]; // how many sub-chunks this line had
-
-      // If it was a blank line
-      if (count === 0) {
-        outputHtml += '<br>'; 
-        continue;
-      }
-
-      // Split this line by punctuation to get each chunk
-      const splittedChunks = originalLine
-        .split(/[.?!;:,]/)
-        .map(s => s.trim())
-        .filter(ch => ch.length > 0);
-
-      // Rebuild each chunk with clickable words, then show translation
+      const count = lineMap[i];
+      if (count === 0) { outputHtml += '<br>'; continue; }
+      const splittedChunks = originalLine.split(/[.?!;:,]/).map(s => s.trim()).filter(ch => ch.length > 0);
       for (let c = 0; c < splittedChunks.length; c++) {
         const chunk = splittedChunks[c];
-
-        // Tokenize chunk by whitespace for clickable words
         const tokens = chunk.split(/(\s+)/);
-        const chunkHtml = tokens.map((token, idx) => {
-          if (token.trim() === '') {
-            return token;
-          } else {
-            return `<span 
-                      class="word"
-                      data-line-index="${i}"
-                      data-token-index="${idx}"
-                    >${escapeHtml(token)}</span>`;
-          }
-        }).join('');
-
-        // Original chunk
+        const chunkHtml = tokens.map(token => token.trim() === '' ? token : `<span class="word" data-line-index="${i}">${escapeHtml(token)}</span>`).join('');
         outputHtml += chunkHtml + '<br>';
-
-        // Corresponding translation
         const t = translations[pointer] || '';
         outputHtml += `<div class="translatedLine">${escapeHtml(t)}</div><br>`;
         pointer++;
       }
     }
-
     textContainer.innerHTML = outputHtml;
     textContainer.scrollTop = 0;
-
-    // Re-attach click event for words
-    const wordSpans = textContainer.querySelectorAll('.word');
-    wordSpans.forEach(span => {
-      span.addEventListener('click', onWordClick);
-    });
-
+    document.querySelectorAll('.word').forEach(span => span.addEventListener('click', onWordClick));
   } catch (err) {
     console.error(err);
     alert('Translation failed: ' + err.message);
   } finally {
-    // Re-enable button
-    translatePageBtn.disabled = false;
-    translatePageBtn.textContent = 'Translate Page';
+    menuTranslateBtn.disabled = false;
+    menuTranslateBtn.textContent = 'Translate';
   }
 }
 
-
-// ------------- Batch Translation Helper ------------- //
 async function fetchBatchTranslation(linesArr) {
   if (!linesArr.length) return [];
-
   const url = 'https://api.openai.com/v1/chat/completions';
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${apiKey}`,
-  };
-
-  // Construct a message telling GPT to translate each line in place
-  // We strongly instruct it to return exactly the same number of lines.
+  const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` };
   const systemPrompt = `You are a translator. The user will provide an array of lines in a foreign language.
 Translate each line into English, line by line, in the same order, returning exactly one translated line per input line.
 Do NOT add extra commentary or numbering. Only output translations.`;
-
   const userContent = linesArr.join('\n');
-
   const messages = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userContent }
   ];
-
-  const body = {
-    model: model,
-    messages,
-    temperature: 0,
-    max_tokens: 1000
-  };
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    throw new Error(`Error from OpenAI: ${response.statusText}`);
-  }
-
+  const body = { model, messages, temperature: 0, max_tokens: 1000 };
+  const response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+  if (!response.ok) { throw new Error(`Error from OpenAI: ${response.statusText}`); }
   const data = await response.json();
-  if (!data.choices || data.choices.length === 0) {
-    throw new Error('No response from OpenAI');
-  }
-
-  // The completion is presumably text with N lines, one for each input line.
-  // We'll split by \n to get them.
+  if (!data.choices || data.choices.length === 0) { throw new Error('No response from OpenAI'); }
   const text = data.choices[0].message.content.trim();
-  const lines = text.split('\n').map(l => l.trim());
-
-  // If the LLM lumps lines together, the user might see fewer lines.
-  // We assume well-behaved output. If needed, you can do more advanced splitting.
-  return lines;
+  return text.split('\n').map(l => l.trim());
 }
+
+ // ==================== Auto-load Last Book & Initialization ==================== //
+  window.addEventListener('DOMContentLoaded', () => {
+    const storedApiKey = localStorage.getItem('openai_api_key');
+    if (storedApiKey) { apiKey = storedApiKey; }
+    const storedModel = localStorage.getItem('openai_model');
+    if (storedModel) { model = storedModel; }
+    modelSelect.value = model;
+    const storedWords = localStorage.getItem('words_data');
+    if (storedWords) {
+      try { wordsData = JSON.parse(storedWords); } catch(e) { wordsData = []; }
+    }
+    const lastBook = localStorage.getItem('lastBook');
+    if (lastBook) {
+      const { fileName, storedTextKey } = JSON.parse(lastBook);
+      if (fileName && storedTextKey) { loadBookFromLocalStorage(fileName, storedTextKey); }
+    }
+    updateUIState();
+    // NEW: Render the recent books list on load
+    renderRecentBooks();
+  });
 </script>
 </body>
 </html>
