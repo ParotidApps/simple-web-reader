@@ -11,12 +11,7 @@
 <header>
   <!-- Hamburger button -->
   <button id="menuBtn" class="hamburger">&#9776;</button>
-  <!-- Page navigation (shown only when a book is open) -->
-  <div id="pageNav" style="display:none;">
-    <button id="prevPageBtn" disabled>&lt; Prev Page</button>
-    <span id="pageIndicator" title="Click to go to page"></span>
-    <button id="nextPageBtn" disabled>Next Page &gt;</button>
-  </div>
+
 </header>
 
 <!-- Hamburger Menu Modal -->
@@ -34,6 +29,12 @@
 </div>
 
 <main>
+    <!-- Page navigation (shown only when a book is open) -->
+  <div id="pageNav" style="display:none;">
+    <button id="prevPageBtn" class="page-button" disabled>&lt;</button>
+    <span id="pageIndicator" title="Click to go to page"></span>
+    <button id="nextPageBtn" class="page-button" disabled>&gt;</button>
+  </div>
   <!-- Shown when no book is open -->
   <div id="openBookPrompt">
     <div id="fileDropZone">
@@ -435,7 +436,7 @@ function renderPage(pageIndex) {
   });
   textContainer.innerHTML = htmlLines.join('\n');
   textContainer.scrollTop = 0;
-  pageIndicator.textContent = `Page ${pageIndex + 1} / ${totalPages}`;
+  pageIndicator.textContent = `${pageIndex + 1} / ${totalPages}`;
   document.querySelectorAll('.word').forEach(span => span.addEventListener('click', onWordClick));
 }
 

@@ -29,14 +29,6 @@ header {
   cursor: pointer;
 }
 
-/* Center the page navigation when a book is open */
-#pageNav {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-}
 
 main {
   flex: 1;
@@ -44,6 +36,10 @@ main {
   flex-direction: column;
   /* Remove overflow: hidden so children can be visible */
   padding: 0.5rem;
+}
+
+#pageIndicator {
+  font-size: 80%;
 }
 
 /* Open Book Prompt / Drop Zone styling */
@@ -197,6 +193,28 @@ button {
 }
 button:hover {
   background: #0056b3;
+}
+
+button.page-button {
+  flex: 1;
+}
+
+#prevPageBtn {
+  text-align: left;
+}
+
+#nextPageBtn {
+  text-align: right;
+}
+
+
+/* Center the page navigation when a book is open */
+#pageNav {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
 }
 
 /* Responsive adjustments */
