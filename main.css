@@ -33,6 +33,7 @@ header {
 
 #menuBtn {
   flex: 1;
+  border-radius: 0;
 }
 
 main {
@@ -92,6 +93,7 @@ main {
   font-size: 1.2rem;
   font-family: Georgia, serif;
   white-space: pre-line;
+  cursor: pointer;
 }
 
 /* Definition box styling: ensure it does not shrink and is visible */
@@ -225,7 +227,7 @@ button.page-button {
 /* Responsive adjustments */
 @media (max-width: 600px) {
   #textContainer {
-    font-size: 0.9rem;
+/*    font-size: 0.9rem;*/
   }
   #searchContainer {
     flex-direction: column;
