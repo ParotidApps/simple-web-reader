@@ -12,23 +12,28 @@ body {
 }
 
 header {
-  padding: 0.5rem 1rem;
+/*  padding: 0.5rem 1rem;*/
   background: #333;
   color: #fff;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  padding: 0;
+/*  gap: 0.5rem;*/
 }
 
 /* Hamburger button styling */
 .hamburger {
-  font-size: 1.5rem;
+  font-size: 0.75rem;
   background: none;
   border: none;
   color: inherit;
   cursor: pointer;
+  padding: 0;
 }
 
+#menuBtn {
+  flex: 1;
+}
 
 main {
   flex: 1;
