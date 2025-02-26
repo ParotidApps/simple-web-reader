@@ -3,25 +3,38 @@
   padding: 0;
   box-sizing: border-box;
 }
+
 body {
   font-family: Arial, sans-serif;
   display: flex;
   flex-direction: column;
   height: 100vh;
   background: #f5f5f5;
+  overflow: hidden; /* Optional: prevents body overflow */
+}
+
+/* Header remains fixed */
+.wrap-header {
+  flex-shrink: 0;
 }
 
 header {
-/*  padding: 0.5rem 1rem;*/
   background: #333;
   color: #fff;
   display: flex;
   align-items: center;
   padding: 0;
-/*  gap: 0.5rem;*/
 }
 
-/* Hamburger button styling */
+/* Main container takes remaining space */
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+  min-height: 0; /* Allow children to shrink */
+}
+
 .hamburger {
   font-size: 0.75rem;
   background: none;
@@ -40,15 +53,38 @@ main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  /* Remove overflow: hidden so children can be visible */
   padding: 0.5rem;
 }
+
+
+/* When a book is open, the book container fills available space */
+#bookContainer {
+  flex: 1;
+  min-height: 0;  /* Crucial: prevents overflow by allowing shrinking */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Ensure inner content doesn't force it to expand */
+}
+
+/* Definition box stays fixed at the bottom */
+#definitionBox {
+  flex-shrink: 0;
+  background: #fff;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  min-height: 2rem;
+  margin-bottom: 0.5rem;
+  overflow-y: auto;
+  max-height: 10rem;
+}
+
+/* The rest of your CSS remains unchanged... */
 
 #pageIndicator {
   font-size: 80%;
 }
 
-/* Open Book Prompt / Drop Zone styling */
 #openBookPrompt {
   display: flex;
   flex-direction: column;
@@ -73,14 +109,6 @@ main {
   margin-bottom: 0.5rem;
 }
 
-/* Book container styling: ensure it fills available space and lays out children vertically */
-#bookContainer {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Text container styling: scrollable area for book text */
 #textContainer {
   flex: 1 1 auto;
   overflow-y: auto;
@@ -96,20 +124,6 @@ main {
   cursor: pointer;
 }
 
-/* Definition box styling: ensure it does not shrink and is visible */
-#definitionBox {
-  flex-shrink: 0;
-  background: #fff;
-  padding: 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  min-height: 2rem;
-  margin-bottom: 0.5rem;
-  overflow-y: auto;
-  max-height: 10rem;
-}
-
-/* Search container styling */
 #searchContainer {
   display: flex;
   gap: 0.5rem;
@@ -131,7 +145,6 @@ main {
   background: #ddd;
 }
 
-/* Translated line styling */
 .translatedLine {
   color: #006600;
 }
@@ -142,7 +155,7 @@ main {
 #quizModal,
 .menuModal {
   position: fixed;
-  top: 0;
+  top: 20px;
   left: 0;
   width: 100%;
   height: 100%;
@@ -214,20 +227,17 @@ button.page-button {
   text-align: right;
 }
 
-
-/* Center the page navigation when a book is open */
 #pageNav {
   flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 1rem;
+  padding: 5px;
 }
 
-/* Responsive adjustments */
 @media (max-width: 600px) {
   #textContainer {
-/*    font-size: 0.9rem;*/
   }
   #searchContainer {
     flex-direction: column;
@@ -235,7 +245,6 @@ button.page-button {
   }
 }
 
-/* Dark Mode */
 @media (prefers-color-scheme: dark) {
   body { background: #121212; color: #e0e0e0; }
   header { background: #1f1f1f; color: #fff; }

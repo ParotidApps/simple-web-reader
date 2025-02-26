@@ -8,6 +8,7 @@
 </head>
 <body>
 
+<div class="wrap-header">
 <header>
   <!-- Hamburger button -->
   <button id="menuBtn" class="hamburger">&#9776;</button>
@@ -28,13 +29,15 @@
   </ul>
 </div>
 
-<main>
     <!-- Page navigation (shown only when a book is open) -->
   <div id="pageNav" style="display:none;">
     <button id="prevPageBtn" class="page-button" disabled>&lt;</button>
     <span id="pageIndicator" title="Click to go to page"></span>
     <button id="nextPageBtn" class="page-button" disabled>&gt;</button>
   </div>
+</div>
+<main>
+
   <!-- Shown when no book is open -->
   <div id="openBookPrompt">
     <div id="fileDropZone">
@@ -58,8 +61,9 @@
     <!-- The book text area -->
     <div id="textContainer"></div>
     <!-- The definition box appears below the text area -->
-    <div id="definitionBox"><em>Definition will appear here when a word is clicked.</em></div>
+    
   </div>
+  <div id="definitionBox"><em>Definition will appear here when a word is clicked.</em></div>
 </main>
 
 <!-- Settings Modal -->
