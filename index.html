@@ -54,7 +54,9 @@
       <button id="searchBtn">Search</button>
     </div>
     <div id="searchResults"></div>
+    <!-- The book text area -->
     <div id="textContainer"></div>
+    <!-- The definition box appears below the text area -->
     <div id="definitionBox"><em>Definition will appear here when a word is clicked.</em></div>
   </div>
 </main>
@@ -219,13 +221,11 @@ let quizCurrentIndex = 0;
 function updateUIState() {
   const bookOpen = pages.length > 0;
   if (bookOpen) {
-    // Show book view and header navigation when a book is open.
     bookContainer.style.display = '';
     openBookPrompt.style.display = 'none';
     pageNav.style.display = 'flex';
     bookOptions.style.display = '';
   } else {
-    // When no book is open, show the drop zone with recent books and hide book-specific UI.
     openBookPrompt.style.display = '';
     bookContainer.style.display = 'none';
     pageNav.style.display = 'none';
@@ -271,7 +271,6 @@ menuTranslateBtn.addEventListener('click', () => {
 });
 
 // ==================== Modal Handling ==================== //
-// Settings Modal
 closeSettingsBtn.addEventListener('click', () => { settingsModal.style.display = 'none'; });
 saveSettingsBtn.addEventListener('click', () => {
   apiKey = apiKeyInput.value.trim();
@@ -281,10 +280,7 @@ saveSettingsBtn.addEventListener('click', () => {
   settingsModal.style.display = 'none';
 });
 
-// Review Modal
 closeReviewBtn.addEventListener('click', () => { reviewModal.style.display = 'none'; });
-
-// Quiz Modal
 closeQuizBtn.addEventListener('click', () => { quizModal.style.display = 'none'; });
 openQuizBtn.addEventListener('click', () => { quizModal.style.display = 'flex'; });
 
@@ -356,6 +352,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (fileName && storedTextKey) { loadBookFromLocalStorage(fileName, storedTextKey); }
   }
   updateUIState();
+  renderRecentBooks();
 });
 
 // ==================== Loading from LocalStorage ==================== //
@@ -429,9 +426,12 @@ function renderPage(pageIndex) {
   }
   const lines = pages[pageIndex];
   const htmlLines = lines.map((line, lineIndex) => {
-    return line.split(/(\s+)/)
-      .map(token => token.trim() === '' ? token : `<span class="word" data-line-index="${lineIndex}">${escapeHtml(token)}</span>`)
-      .join('');
+    const tokens = line.split(/(\s+)/);
+    return tokens.map((token, tokenIndex) => {
+      return token.trim() === '' 
+        ? token 
+        : `<span class="word" data-line-index="${lineIndex}" data-token-index="${tokenIndex}">${escapeHtml(token)}</span>`;
+    }).join('');
   });
   textContainer.innerHTML = htmlLines.join('\n');
   textContainer.scrollTop = 0;
@@ -443,10 +443,16 @@ function renderPage(pageIndex) {
 async function onWordClick(e) {
   const clickedToken = e.target.textContent;
   const lineIndex = parseInt(e.target.dataset.lineIndex, 10);
+  const tokenIndex = parseInt(e.target.dataset.tokenIndex, 10);
   const line = pages[currentPageIndex][lineIndex] || '';
+  const tokens = line.split(/(\s+)/);
+  let offset = 0;
+  for (let i = 0; i < tokenIndex; i++) {
+    offset += tokens[i].length;
+  }
   definitionBox.innerHTML = 'Fetching definition...';
   try {
-    const truncatedSentence = truncateSentence(line, clickedToken, MAX_SENTENCE_LENGTH);
+    const truncatedSentence = truncateSentence(line, clickedToken, MAX_SENTENCE_LENGTH, offset);
     const definition = await fetchDefinition(clickedToken, truncatedSentence);
     definitionBox.innerHTML = `<strong>${clickedToken}:</strong> ${definition}`;
     storeWordData(clickedToken, truncatedSentence, definition);
@@ -459,9 +465,8 @@ async function onWordClick(e) {
 // ==================== Word Data & Utilities ==================== //
 function storeWordData(word, sentence, translation) {
   const existingIndex = wordsData.findIndex(w => w.word === word && w.sentence === sentence);
-  if (existingIndex !== -1) {
-    wordsData[existingIndex].translation = translation;
-  } else {
+  if (existingIndex !== -1) { wordsData[existingIndex].translation = translation; }
+  else {
     const newItem = {
       id: generateId(),
       word,
@@ -479,17 +484,17 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
 
-function truncateSentence(line, word, maxLen) {
+function truncateSentence(line, word, maxLen, offset) {
   if (line.length <= maxLen) return line;
-  const idx = line.indexOf(word);
-  if (idx === -1) { return line.substring(0, maxLen) + '...'; }
+  const idx = (typeof offset === 'number') ? offset : line.indexOf(word);
+  if (idx === -1) return line.substring(0, maxLen) + '...';
   const half = Math.floor(maxLen / 2);
   let start = Math.max(0, idx - half);
-  let end = Math.min(line.length, idx + word.length + half);
+  let end   = Math.min(line.length, idx + word.length + half);
   if (end - start < maxLen) { end = Math.min(line.length, start + maxLen); }
   let snippet = line.substring(start, end);
-  if (start > 0) { snippet = '...' + snippet; }
-  if (end < line.length) { snippet += '...'; }
+  if (start > 0) snippet = '...' + snippet;
+  if (end < line.length) snippet += '...';
   return snippet;
 }
 
@@ -568,65 +573,6 @@ function renderRecentBooks() {
     recentBooksList.appendChild(div);
   });
 }
-
-// ==================== Review Words ==================== //
-function renderWordList() {
-  const boxFilter = reviewFilter.value;
-  let filtered = [...wordsData];
-  if (boxFilter !== 'all') {
-    filtered = filtered.filter(w => w.box === parseInt(boxFilter, 10));
-  }
-  if (!filtered.length) { wordList.innerHTML = '<em>No words found in this box.</em>'; return; }
-  const container = document.createElement('div');
-  filtered.forEach(w => {
-    const row = document.createElement('div');
-    row.classList.add('reviewWordRow');
-    row.innerHTML = `<strong>${w.word}</strong> - Box ${w.box}<br>
-                     <em>${w.sentence}</em><br>
-                     ${w.translation}<br>
-                     Page: ${w.page+1}<br>
-                     <button class="openPageBtn" data-id="${w.id}">Open Page</button>
-                     <button class="deleteWordBtn" data-id="${w.id}">Delete</button>`;
-    container.appendChild(row);
-  });
-  wordList.innerHTML = '';
-  wordList.appendChild(container);
-  document.querySelectorAll('.deleteWordBtn').forEach(btn => {
-    btn.addEventListener('click', (evt) => {
-      const targetId = evt.target.dataset.id;
-      wordsData = wordsData.filter(w => w.id !== targetId);
-      localStorage.setItem('words_data', JSON.stringify(wordsData));
-      renderWordList();
-    });
-  });
-  document.querySelectorAll('.openPageBtn').forEach(btn => {
-    btn.addEventListener('click', (evt) => {
-      const targetId = evt.target.dataset.id;
-      const item = wordsData.find(w => w.id === targetId);
-      if (!item) return;
-      currentPageIndex = item.page;
-      renderPage(currentPageIndex);
-      savePageIndex();
-      reviewModal.style.display = 'none';
-    });
-  });
-}
-reviewFilter.addEventListener('change', renderWordList);
-exportTSVBtn.addEventListener('click', () => {
-  if (!wordsData.length) return;
-  let tsv = 'Word\tSentence\tTranslation\tBox\tPage\n';
-  wordsData.forEach(w => {
-    tsv += `${w.word}\t${w.sentence}\t${w.translation}\t${w.box}\t${w.page+1}\n`;
-  });
-  const blob = new Blob([tsv], { type: 'text/tab-separated-values' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'words_data.tsv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-});
 
 // ==================== Quiz Logic ==================== //
 startQuizBtn.addEventListener('click', startQuiz);
@@ -778,27 +724,6 @@ Do NOT add extra commentary or numbering. Only output translations.`;
   const text = data.choices[0].message.content.trim();
   return text.split('\n').map(l => l.trim());
 }
-
- // ==================== Auto-load Last Book & Initialization ==================== //
-  window.addEventListener('DOMContentLoaded', () => {
-    const storedApiKey = localStorage.getItem('openai_api_key');
-    if (storedApiKey) { apiKey = storedApiKey; }
-    const storedModel = localStorage.getItem('openai_model');
-    if (storedModel) { model = storedModel; }
-    modelSelect.value = model;
-    const storedWords = localStorage.getItem('words_data');
-    if (storedWords) {
-      try { wordsData = JSON.parse(storedWords); } catch(e) { wordsData = []; }
-    }
-    const lastBook = localStorage.getItem('lastBook');
-    if (lastBook) {
-      const { fileName, storedTextKey } = JSON.parse(lastBook);
-      if (fileName && storedTextKey) { loadBookFromLocalStorage(fileName, storedTextKey); }
-    }
-    updateUIState();
-    // NEW: Render the recent books list on load
-    renderRecentBooks();
-  });
 </script>
 </body>
 </html>

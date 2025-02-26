@@ -42,7 +42,7 @@ main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  /* Remove overflow: hidden so children can be visible */
   padding: 0.5rem;
 }
 
@@ -71,9 +71,16 @@ main {
   margin-bottom: 0.5rem;
 }
 
-/* Book container styling */
-#textContainer {
+/* Book container styling: ensure it fills available space and lays out children vertically */
+#bookContainer {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Text container styling: scrollable area for book text */
+#textContainer {
+  flex: 1 1 auto;
   overflow-y: auto;
   background: #fff;
   border: 1px solid #ccc;
@@ -86,13 +93,9 @@ main {
   white-space: pre-line;
 }
 
-/* Highlight word on hover */
-.word:hover {
-  background-color: #fffa87;
-  cursor: pointer;
-}
-
+/* Definition box styling: ensure it does not shrink and is visible */
 #definitionBox {
+  flex-shrink: 0;
   background: #fff;
   padding: 0.75rem;
   border: 1px solid #ccc;
@@ -103,6 +106,7 @@ main {
   max-height: 10rem;
 }
 
+/* Search container styling */
 #searchContainer {
   display: flex;
   gap: 0.5rem;
