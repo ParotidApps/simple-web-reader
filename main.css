@@ -215,3 +215,86 @@ button:hover {
     align-items: flex-start;
   }
 }
+
+/* Default (light mode) styles are already set */
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #121212;
+    color: #e0e0e0;
+  }
+
+  header {
+    background: #1f1f1f;
+    color: #ffffff;
+  }
+
+  #textContainer {
+    background: #1e1e1e;
+    color: #e0e0e0;
+    border: 1px solid #333333;
+  }
+
+  #definitionBox {
+    background: #1e1e1e;
+    color: #e0e0e0;
+    border: 1px solid #333333;
+  }
+
+  .searchHit {
+    background: #3a3a3a;
+  }
+  
+  .searchHit:hover {
+    background: #5a5a5a;
+  }
+
+  .translatedLine {
+    color: #4caf50;
+  }
+
+  #settingsModal,
+  #recentModal,
+  #reviewModal,
+  #quizModal {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  #settingsModalContent,
+  #recentModalContent,
+  #reviewModalContent,
+  #quizModalContent {
+    background: #2c2c2c;
+    color: #e0e0e0;
+  }
+
+  .recentBookItem {
+    border-bottom: 1px solid #333333;
+  }
+
+  .recentBookItem:hover {
+    background: #333333;
+  }
+
+  #quizCard {
+    background: #2d2d2d;
+    border: 1px solid #444444;
+  }
+
+  button {
+    background: #1a73e8;
+    color: #ffffff;
+  }
+
+  button:hover {
+    background: #1558b0;
+  }
+
+  .word:hover {
+    background-color: #3c3c3c;
+  }
+
+  .reviewWordRow {
+    border-bottom: 1px dashed #2e2e2e;
+  }
+}
