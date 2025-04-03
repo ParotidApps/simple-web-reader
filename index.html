@@ -5,31 +5,69 @@
   <title>Paginated TXT Reader & Dictionary</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link href="main.css" rel="stylesheet" />
+  <style>
+    /* Updated definitionBox styling */
+    #definitionBox {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      /* Use the same colors as the main text container (#textContainer) */
+      background: #fff;
+      border: 1px solid #ccc;
+      color: #000;
+      padding: 10px 10px 10px 50px; /* space for the close area */
+      z-index: 1000;
+      display: none;
+    }
+    /* In dark mode, match the dark theme colors */
+    @media (prefers-color-scheme: dark) {
+      #definitionBox {
+        background: #1e1e1e;
+        border: 1px solid #333;
+        color: #e0e0e0;
+      }
+    }
+    /* Close button occupies a fixed area on the left, full height */
+    #definitionBox .close-button {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 50px;
+      height: 100%;
+      background: transparent;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
 </head>
 <body>
 
 <div class="wrap-header">
-<header>
-  <!-- Hamburger button -->
-  <button id="menuBtn" class="hamburger">&#9776;</button>
+  <header>
+    <!-- Hamburger button -->
+    <button id="menuBtn" class="hamburger">&#9776;</button>
+  </header>
 
-</header>
+  <!-- Hamburger Menu Modal -->
+  <div id="hamburgerMenu" class="menuModal" style="display:none;">
+    <ul>
+      <li><button id="menuReviewWordsBtn">Review Words</button></li>
+      <li><button id="menuToggleSearchBtn">Toggle Search</button></li>
+      <li><button id="menuSettingsBtn">Settings</button></li>
+      <!-- These options appear only when a book is open -->
+      <li id="bookOptions" style="display:none;">
+        <button id="menuCloseBookBtn">Close Book</button>
+        <button id="menuTranslateBtn">Translate</button>
+      </li>
+    </ul>
+  </div>
 
-<!-- Hamburger Menu Modal -->
-<div id="hamburgerMenu" class="menuModal" style="display:none;">
-  <ul>
-    <li><button id="menuReviewWordsBtn">Review Words</button></li>
-    <li><button id="menuToggleSearchBtn">Toggle Search</button></li>
-    <li><button id="menuSettingsBtn">Settings</button></li>
-    <!-- These options appear only when a book is open -->
-    <li id="bookOptions" style="display:none;">
-      <button id="menuCloseBookBtn">Close Book</button>
-      <button id="menuTranslateBtn">Translate</button>
-    </li>
-  </ul>
-</div>
-
-<div id="definitionBox"></div>
+  <div id="definitionBox"></div>
 </div>
 <main>
 
@@ -56,10 +94,9 @@
     <!-- The book text area -->
     <div id="textContainer"></div>
     <!-- The definition box appears below the text area -->
-    
   </div>
   
-      <!-- Page navigation (shown only when a book is open) -->
+  <!-- Page navigation (shown only when a book is open) -->
   <div id="pageNav" style="display:none;">
     <button id="prevPageBtn" class="page-button" disabled>&lt;</button>
     <span id="pageIndicator" title="Click to go to page"></span>
@@ -300,6 +337,7 @@ fileInput.addEventListener('change', async (evt) => {
 
 function loadFile(file) {
   definitionBox.innerHTML = '<em>Definition will appear here when a word is clicked.</em>';
+  definitionBox.style.display = 'none';
   textContainer.innerHTML = 'Loading file...';
   currentFileName = file.name;
   const reader = new FileReader();
@@ -426,6 +464,9 @@ function goNextPage() {
 
 // ==================== Render Page ==================== //
 function renderPage(pageIndex) {
+  // Hide the dictionary popup when changing pages
+  definitionBox.style.display = 'none';
+  
   if (pageIndex < 0 || pageIndex >= totalPages) {
     textContainer.innerHTML = 'No content.';
     pageIndicator.textContent = '';
@@ -461,7 +502,12 @@ async function onWordClick(e) {
   try {
     const truncatedSentence = truncateSentence(line, clickedToken, MAX_SENTENCE_LENGTH, offset);
     const definition = await fetchDefinition(clickedToken, truncatedSentence);
-    definitionBox.innerHTML = `<strong>${clickedToken}:</strong> ${definition}`;
+    // Update definitionBox with close button and definition
+    definitionBox.innerHTML = `<button id="closeDefinitionBtn" class="close-button">&times;</button><strong>${clickedToken}:</strong> ${definition}`;
+    definitionBox.style.display = 'block';
+    document.getElementById('closeDefinitionBtn').addEventListener('click', () => {
+      definitionBox.style.display = 'none';
+    });
     storeWordData(clickedToken, truncatedSentence, definition);
   } catch (error) {
     console.error(error);
@@ -739,7 +785,6 @@ function updateVh() {
 }
 updateVh();
 window.addEventListener('resize', updateVh);
-
 </script>
 </body>
 </html>
